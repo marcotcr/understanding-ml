@@ -19,6 +19,7 @@ class LimeBase(object):
         """
         self.kernel_fn = kernel_fn
         self.verbose = verbose
+        self.explanation_model = None
     @staticmethod
     def generate_lars_path(weighted_data, weighted_labels):
         """Generates the lars path for weighted data.
@@ -101,7 +102,7 @@ class LimeBase(object):
                                    distances,
                                    label,
                                    num_features,
-                                   feature_selection='auto'):
+                                   feature_selection='auto', give_score=False):
         """Takes perturbed data, labels and distances, returns explanation.
 
         Args:
@@ -140,14 +141,14 @@ class LimeBase(object):
                                                num_features,
                                                feature_selection)
 
-        easy_model = linear_model.Ridge(alpha=1, fit_intercept=True)
-        easy_model.fit(neighborhood_data[:, used_features],
+        self.explanation_model = linear_model.Ridge(alpha=1, fit_intercept=True)
+        self.explanation_model.fit(neighborhood_data[:, used_features],
                        labels_column, sample_weight=weights)
         if self.verbose:
-            local_pred = easy_model.predict(
+            local_pred = self.explanation_model.predict(
                 neighborhood_data[0, used_features].reshape(1, -1))
-            print('Intercept', easy_model.intercept_)
+            print('Intercept', self.explanation_model.intercept_)
             print('Prediction_local', local_pred,)
             print('Right:', neighborhood_labels[0, label])
-        return easy_model.intercept_, sorted(zip(used_features, easy_model.coef_),
+        return self.explanation_model.intercept_, sorted(zip(used_features, self.explanation_model.coef_),
                       key=lambda x: np.abs(x[1]), reverse=True)
