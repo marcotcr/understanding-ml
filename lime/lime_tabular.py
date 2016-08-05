@@ -149,7 +149,7 @@ class LimeTabularExplainer(object):
             self.scaler.scale_[feature] = 1
         #print self.feature_frequencies
     def explain_instance(self, data_row, classifier_fn, labels=(1,),
-                         top_labels=None, num_features=10, num_samples=5000):
+                         top_labels=None, num_features=10, num_samples=5000, distance_metric='euclidean'):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features from
@@ -168,6 +168,7 @@ class LimeTabularExplainer(object):
                 this parameter.
             num_features: maximum number of features present in explanation
             num_samples: size of the neighborhood to learn the linear model
+            distance_metric: the distance metric to use for weights.
 
         Returns:
             An Explanation object (see explanation.py) with the corresponding
@@ -175,7 +176,14 @@ class LimeTabularExplainer(object):
         """
         data, inverse = self.__data_inverse(data_row, num_samples)
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
-        distances = np.sqrt(np.sum((scaled_data - scaled_data[0]) ** 2, axis=1))
+
+        # new method, using sklearn's pairwise_distance to expose more options
+        distances = sklearn.metrics.pairwise_distances(
+            scaled_data,
+            scaled_data[0].reshape(1, -1),
+            metric=distance_metric
+        ).ravel()
+
         yss = classifier_fn(inverse)
         if self.class_names is None:
             self.class_names = [str(x) for x in range(yss[0].shape[0])]

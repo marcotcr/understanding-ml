@@ -192,7 +192,8 @@ class LimeTextExplainer(object):
                          labels=(1,),
                          top_labels=None,
                          num_features=10,
-                         num_samples=5000):
+                         num_samples=5000,
+                         distance_metric='cosine'):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly hiding features from
@@ -211,6 +212,8 @@ class LimeTextExplainer(object):
                 this parameter.
             num_features: maximum number of features present in explanation
             num_samples: size of the neighborhood to learn the linear model
+            distance_metric: the distance metric to use for sample weighting,
+                defaults to cosine similarity
 
         Returns:
             An Explanation object (see explanation.py) with the corresponding
@@ -220,7 +223,7 @@ class LimeTextExplainer(object):
                                        split_expression=self.split_expression)
         domain_mapper = TextDomainMapper(indexed_string)
         data, yss, distances = self.__data_labels_distances(
-            indexed_string, classifier_fn, num_samples)
+            indexed_string, classifier_fn, num_samples, distance_metric=distance_metric)
         if self.class_names is None:
             self.class_names = [str(x) for x in range(yss[0].shape[0])]
         ret_exp = explanation.Explanation(domain_mapper=domain_mapper,
@@ -241,7 +244,8 @@ class LimeTextExplainer(object):
     def __data_labels_distances(cls,
                                 indexed_string,
                                 classifier_fn,
-                                num_samples):
+                                num_samples,
+                                distance_metric='cosine'):
         """Generates a neighborhood around a prediction.
 
         Generates neighborhood data by randomly removing words from
@@ -253,6 +257,9 @@ class LimeTextExplainer(object):
                 takes a string and outputs prediction probabilities. For
                 ScikitClassifier, this is classifier.predict_proba.
             num_samples: size of the neighborhood to learn the linear model
+            distance_metric: the distance metric to use for sample weighting,
+                defaults to cosine similarity
+
 
         Returns:
             A tuple (data, labels, distances), where:
@@ -265,7 +272,7 @@ class LimeTextExplainer(object):
                     each perturbed instance (computed in the binary 'data'
                     matrix), times 100.
         """
-        distance_fn = lambda x: sklearn.metrics.pairwise.cosine_distances(x[0], x)[0] * 100
+        distance_fn = lambda x: sklearn.metrics.pairwise.pairwise_distances(x, x[0], metric=distance_metric).ravel() * 100
         doc_size = indexed_string.num_words()
         sample = np.random.randint(1, doc_size + 1, num_samples - 1)
         data = np.ones((num_samples, doc_size))
