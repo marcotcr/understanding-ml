@@ -119,7 +119,8 @@ class LimeTabularExplainer(object):
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(training_data)
 
-        kernel = lambda d: np.sqrt(np.exp(-(d**2) / kernel_width ** 2))
+        kernel = lambda d: np.sqrt(np.exp(-((d / training_data.shape[1])**2) / kernel_width ** 2))
+
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel, verbose)
         self.scaler = None

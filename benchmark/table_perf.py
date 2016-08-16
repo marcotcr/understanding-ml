@@ -17,7 +17,7 @@ def interpret_data(X, y, func):
         explanation = explainer.explain_instance(X[r_idx, :], func)
         times.append(time.time() - start_time)
         scores.append(explanation.score)
-        print('...')
+        print(explanation.score)
 
     return times, scores
 
