@@ -9,7 +9,7 @@ Our plan is to add more packages that help users understand and interact meaning
 
 Lime is able to explain any black box text classifier, with two or more classes. All we require is that the classifier implements a function that takes in raw text or a numpy array and outputs a probability for each class. Support for scikit-learn classifiers is built-in.
 ## Installation
-The lime package is on pypy. Simply run:
+The lime package is on pypi. Simply run:
 
     pip install lime
 Or clone the repository and run:
