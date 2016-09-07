@@ -9,6 +9,7 @@ import sklearn
 import sklearn.preprocessing
 from . import lime_base
 from . import explanation
+from .discretize import QuartileDiscretizer
 
 
 class TableDomainMapper(explanation.DomainMapper):
@@ -85,7 +86,7 @@ class LimeTabularExplainer(object):
     sampling according to the training distribution, and making a binary
     feature that is 1 when the value is the same as the instance being
     explained."""
-    def __init__(self, training_data, feature_names=None,
+    def __init__(self, training_data, labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
                  kernel_width=None, verbose=False, class_names=None,
                  feature_selection='auto', discretize_continuous=True):
@@ -122,9 +123,10 @@ class LimeTabularExplainer(object):
             self.categorical_features = []
         self.discretizer = None
         if discretize_continuous:
-            self.discretizer = QuartileDiscretizer(training_data,
+            self.discretizer = QuartileDiscretizer(training_data, 
                                                    self.categorical_features,
-                                                   feature_names)
+                                                   feature_names,
+                                                   labels=labels)
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(
                 training_data)
@@ -303,89 +305,3 @@ class LimeTabularExplainer(object):
         inverse[0] = data_row
         return data, inverse
 
-
-class QuartileDiscretizer:
-    """Discretizes data into quartiles."""
-    def __init__(self, data, categorical_features, feature_names):
-        """Initializer
-
-        Args:
-            data: numpy 2d array
-            categorical_features: list of indices (ints) corresponding to the
-                categorical columns. These features will not be discretized.
-                Everything else will be considered continuous, and will be
-                discretized.
-            categorical_names: map from int to list of names, where
-                categorical_names[x][y] represents the name of the yth value of
-                column x.
-            feature_names: list of names (strings) corresponding to the columns
-                in the training data.
-        """
-        to_discretize = ([x for x in range(data.shape[1])
-                         if x not in categorical_features])
-        self.names = {}
-        self.lambdas = {}
-        self.ranges = {}
-        self.means = {}
-        self.stds = {}
-        self.mins = {}
-        self.maxs = {}
-        for feature in to_discretize:
-            qts = np.percentile(data[:, feature], [25, 50, 75])
-            boundaries = np.min(data[:, feature]), np.max(data[:, feature])
-            name = feature_names[feature]
-            self.names[feature] = (
-                ['%s <= %.2f' % (name, qts[0]),
-                 '%.2f < %s <= %.2f' % (qts[0], name, qts[1]),
-                 '%.2f < %s <= %.2f' % (qts[1], name, qts[2]),
-                 '%s > %.2f' % (name, qts[2])])
-            self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
-            discretized = self.lambdas[feature](data[:, feature])
-            self.means[feature] = []
-            self.stds[feature] = []
-            for x in range(4):
-                selection = data[discretized == x, feature]
-                mean = 0 if len(selection) == 0 else np.mean(selection)
-                self.means[feature].append(mean)
-                std = 0 if len(selection) == 0 else np.std(selection)
-                std += 0.00000000001
-                self.stds[feature].append(std)
-            self.mins[feature] = [boundaries[0], qts[0], qts[1], qts[2]]
-            self.maxs[feature] = [qts[0], qts[1], qts[2], boundaries[1]]
-
-    def discretize(self, data):
-        """Discretizes the data.
-
-        Args:
-            data: numpy 2d or 1d array
-
-        Returns:
-            numpy array of same dimension, discretized.
-        """
-        ret = data.copy()
-        for feature in self.lambdas:
-            if len(data.shape) == 1:
-                ret[feature] = int(self.lambdas[feature](ret[feature]))
-            else:
-                ret[:, feature] = self.lambdas[feature](
-                    ret[:, feature]).astype(int)
-        return ret
-
-    def undiscretize(self, data):
-        ret = data.copy()
-        for feature in self.means:
-            mins = self.mins[feature]
-            maxs = self.maxs[feature]
-            means = self.means[feature]
-            stds = self.stds[feature]
-
-            def get_inverse(q): return max(
-                mins[q],
-                min(np.random.normal(means[q], stds[q]), maxs[q]))
-            if len(data.shape) == 1:
-                q = int(ret[feature])
-                ret[feature] = get_inverse(q)
-            else:
-                ret[:, feature] = (
-                    [get_inverse(int(x)) for x in ret[:, feature]])
-        return ret
