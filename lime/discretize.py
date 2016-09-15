@@ -119,8 +119,7 @@ class BaseDiscretizer():
 
 
 class QuartileDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names,
-                 n_bins=4, labels=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None):
 
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels)
@@ -133,9 +132,22 @@ class QuartileDiscretizer(BaseDiscretizer):
         return bins
 
 
+class DecileDiscretizer(BaseDiscretizer):
+    def __init__(self, data, categorical_features, feature_names, labels=None):
+        BaseDiscretizer.__init__(self, data, categorical_features,
+                                 feature_names, labels=labels)
+
+    def bins(self, data, labels):
+        bins = []
+        for feature in self.to_discretize:
+            qts = np.percentile(data[:, feature],
+                                [10, 20, 30, 40, 50, 60, 70, 80, 90])
+            bins.append(qts)
+        return bins
+
+
 class EntropyDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names,
-                 n_bins=4, labels=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None):
         if(labels is None):
             raise ValueError('Labels must be not None when using \
                              EntropyDiscretizer')
