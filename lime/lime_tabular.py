@@ -9,7 +9,7 @@ import sklearn
 import sklearn.preprocessing
 from . import lime_base
 from . import explanation
-from .discretize import QuartileDiscretizer, EntropyDiscretizer
+from .discretize import DecileDiscretizer, QuartileDiscretizer
 
 
 class TableDomainMapper(explanation.DomainMapper):
@@ -124,9 +124,9 @@ class LimeTabularExplainer(object):
         self.discretizer = None
         if discretize_continuous:
             self.discretizer = QuartileDiscretizer(training_data,
-                                                   self.categorical_features,
-                                                   feature_names,
-                                                   labels=labels)
+                                                 self.categorical_features,
+                                                 feature_names,
+                                                 labels=labels)
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(
                 training_data)
