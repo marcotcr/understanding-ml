@@ -9,7 +9,7 @@ import sklearn
 import sklearn.preprocessing
 from . import lime_base
 from . import explanation
-from .discretize import QuartileDiscretizer
+from .discretize import QuartileDiscretizer, EntropyDiscretizer
 
 
 class TableDomainMapper(explanation.DomainMapper):
@@ -123,7 +123,7 @@ class LimeTabularExplainer(object):
             self.categorical_features = []
         self.discretizer = None
         if discretize_continuous:
-            self.discretizer = QuartileDiscretizer(training_data, 
+            self.discretizer = QuartileDiscretizer(training_data,
                                                    self.categorical_features,
                                                    feature_names,
                                                    labels=labels)
@@ -304,4 +304,3 @@ class LimeTabularExplainer(object):
             inverse[1:] = self.discretizer.undiscretize(inverse[1:])
         inverse[0] = data_row
         return data, inverse
-
