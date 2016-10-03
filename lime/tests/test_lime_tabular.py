@@ -109,7 +109,6 @@ class TestLimeTabular(unittest.TestCase):
                           sum([1 if 'petal length' in x else 0 for x in keys]),
                           "Petal Length is a major feature")
 
-
     def test_lime_explainer_entropy_discretization(self):
         np.random.seed(1)
         iris = load_iris()
