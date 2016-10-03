@@ -124,12 +124,15 @@ class LimeTabularExplainer(object):
             self.categorical_names = {}
         if self.categorical_features is None:
             self.categorical_features = []
-        self.discretizer = discretizer
-        if not self.discretizer:
+
+        if not discretizer:
             self.discretizer = QuartileDiscretizer(training_data,
                                                    self.categorical_features,
                                                    feature_names,
                                                    labels=labels)
+        else:
+            self.discretizer = discretizer(training_data, self.categorical_features, feature_names, labels=labels)
+
         if discretize_continuous:
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(

@@ -148,7 +148,7 @@ class DecileDiscretizer(BaseDiscretizer):
 
 class EntropyDiscretizer(BaseDiscretizer):
     def __init__(self, data, categorical_features, feature_names, labels=None):
-        if(labels is None):
+        if labels is None:
             raise ValueError('Labels must be not None when using \
                              EntropyDiscretizer')
         BaseDiscretizer.__init__(self, data, categorical_features,
