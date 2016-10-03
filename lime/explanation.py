@@ -148,7 +148,7 @@ class Explanation(object):
         Params:
             file_path: file to save explanations to
         """
-        file_ = open(file_path, 'w')
+        file_ = open(file_path, 'w', encoding='utf8')
         file_.write(self.as_html(labels, predict_proba, **kwargs))
         file_.close()
 
