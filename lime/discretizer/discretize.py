@@ -6,7 +6,7 @@ import sklearn
 from abc import ABCMeta, abstractmethod
 
 
-class BaseDiscretizer():
+class BaseDiscretizer(object):
     """
     Abstract class - Build a class that inherits from this class to implement
     a custom discretizer.
