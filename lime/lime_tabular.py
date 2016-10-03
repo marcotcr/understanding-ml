@@ -16,6 +16,7 @@ from . import lime_base
 
 class TableDomainMapper(explanation.DomainMapper):
     """Maps feature ids to names, generates table views, etc"""
+
     def __init__(self, feature_names, feature_values, scaled_row,
                  categorical_features, discretized_feature_names=None):
         """Init.
@@ -71,7 +72,7 @@ class TableDomainMapper(explanation.DomainMapper):
         for x in exp:
             weights[x[0]] = x[1]
         out_list = list(zip(self.exp_feature_names, self.feature_values,
-                        weights))
+                            weights))
         if not show_all:
             out_list = [out_list[x[0]] for x in exp]
         ret = u'''
@@ -88,10 +89,12 @@ class LimeTabularExplainer(object):
     sampling according to the training distribution, and making a binary
     feature that is 1 when the value is the same as the instance being
     explained."""
+
     def __init__(self, training_data, labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
                  kernel_width=None, verbose=False, class_names=None,
-                 feature_selection='auto', discretize_continuous=True, discretizer=None):
+                 feature_selection='auto', discretize_continuous=True,
+                 discretizer=None):
         """Init function.
 
         Args:
@@ -116,7 +119,8 @@ class LimeTabularExplainer(object):
                 details on what each of the options does.
             discretize_continuous: if True, all non-categorical features will
                 be discretized into quartiles.
-            discretizer: if given, will use that to discretize data if discretize_continous is enabled
+            discretizer: if given, will use that to discretize data
+            if discretize_continous is enabled
         """
         self.categorical_names = categorical_names
         self.categorical_features = categorical_features
@@ -131,7 +135,9 @@ class LimeTabularExplainer(object):
                                                    feature_names,
                                                    labels=labels)
         else:
-            self.discretizer = discretizer(training_data, self.categorical_features, feature_names, labels=labels)
+            self.discretizer = discretizer(training_data,
+                                           self.categorical_features,
+                                           feature_names, labels=labels)
 
         if discretize_continuous:
             self.categorical_features = range(training_data.shape[1])
@@ -142,7 +148,9 @@ class LimeTabularExplainer(object):
             kernel_width = np.sqrt(training_data.shape[1]) * .75
         kernel_width = float(kernel_width)
 
-        def kernel(d): return np.sqrt(np.exp(-(d**2) / kernel_width ** 2))
+        def kernel(d):
+            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
+
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel, verbose)
         self.scaler = None
@@ -219,7 +227,9 @@ class LimeTabularExplainer(object):
         if feature_names is None:
             feature_names = [str(x) for x in range(data_row.shape[0])]
 
-        def round_stuff(x): return ['%.2f' % a for a in x]
+        def round_stuff(x):
+            return ['%.2f' % a for a in x]
+
         values = round_stuff(data_row)
         for i in self.categorical_features:
             if self.discretizer is not None and i in self.discretizer.lambdas:

@@ -90,7 +90,8 @@ class TestLimeTabular(unittest.TestCase):
         explainer = LimeTabularExplainer(train, labels=labels_train,
                                          feature_names=iris.feature_names,
                                          class_names=iris.target_names,
-                                         discretize_continuous=True, discretizer=EntropyDiscretizer)
+                                         discretize_continuous=True,
+                                         discretizer=EntropyDiscretizer)
 
         exp = explainer.explain_instance(test[i], rf.predict_proba,
                                          num_features=2)
