@@ -125,7 +125,7 @@ var lime =
 	      var names = ['NOT ' + this.names[label], this.names[label]];
 	      if (this.names.length == 2) {
 	        colors = [this.colors_i(0), this.colors_i(1)];
-	        names = this.names;
+	        names = [this.names[Math.abs(label-1)], this.names[label]];
 	      }
 	      var plot = new _bar_chart2.default(svg, exp, true, names, colors, true, 10);
 	      svg.style('height', plot.svg_height);
