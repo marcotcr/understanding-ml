@@ -1,5 +1,4 @@
 # lime
-
 This project is about explaining what machine learning classifiers (or models) are doing.
 At the moment, we support explaining individual predictions for text classifiers or classifiers that act on tables (numpy arrays of numerical or categorical data), with a package called lime (short for local interpretable model-agnostic explanations).
 Lime is based on the work presented in [this paper](http://arxiv.org/abs/1602.04938). Here is a link to the promo video:
