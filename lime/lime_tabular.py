@@ -9,6 +9,8 @@ import numpy as np
 import sklearn
 import sklearn.preprocessing
 
+from warnings import warn
+
 from lime.discretize import QuartileDiscretizer
 from lime.discretize import DecileDiscretizer
 from lime.discretize import EntropyDiscretizer
@@ -228,6 +230,14 @@ class LimeTabularExplainer(object):
         ).ravel()
 
         yss = classifier_fn(inverse)
+
+        if not np.allclose(yss.sum(axis=1), 1.0):
+            warn("""
+                    Predictions are not summing to 1, and 
+                    thus does not constitute a proprobality space.
+                    Check that you classifier outputs probabilities
+                    (Not log_probas, or class predictions).
+                    """)
         if self.class_names is None:
             self.class_names = [str(x) for x in range(yss[0].shape[0])]
         else:
