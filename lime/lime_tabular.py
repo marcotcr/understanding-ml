@@ -234,7 +234,7 @@ class LimeTabularExplainer(object):
         if not np.allclose(yss.sum(axis=1), 1.0):
             warn("""
                     Predictions are not summing to 1, and 
-                    thus does not constitute a proprobality space.
+                    thus does not constitute a probability space.
                     Check that you classifier outputs probabilities
                     (Not log_probas, or class predictions).
                     """)
@@ -286,6 +286,7 @@ class LimeTabularExplainer(object):
                 scaled_data, yss, distances, label, num_features,
                 model_regressor=model_regressor,
                 feature_selection=self.feature_selection)
+
         return ret_exp
 
     def __data_inverse(self,
