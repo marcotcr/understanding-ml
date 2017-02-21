@@ -134,6 +134,7 @@ class LimeTabularExplainer(object):
             self.categorical_names = {}
         if self.categorical_features is None:
             self.categorical_features = []
+        self.training_labels = training_labels or np.array(range(training_data))
         self.discretizer = None
         if discretize_continuous:
             if discretizer == 'quartile':
