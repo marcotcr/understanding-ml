@@ -73,7 +73,7 @@ class TableDomainMapper(explanation.DomainMapper):
         if not show_table:
             return ''
         weights = [0] * len(self.feature_names)
-        for x in exp:
+        for x in exp:vagran
             weights[x[0]] = x[1]
         out_list = list(zip(self.exp_feature_names, self.feature_values,
                             weights))
@@ -96,9 +96,9 @@ class LimeTabularExplainer(object):
 
     def __init__(self, training_data, training_labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
-                 kernel_width=None, verbose=False, class_names=None,
+                 verbose=False, class_names=None,
                  feature_selection='auto', discretize_continuous=True,
-                 discretizer='quartile'):
+                 discretizer='quartile', default_kernel_width = None):
         """Init function.
 
         Args:
@@ -128,6 +128,10 @@ class LimeTabularExplainer(object):
             discretizer: only matters if discretize_continuous is True. Options
                 are 'quartile', 'decile' or 'entropy'
         """
+
+        
+        self.default_kernel_width = default_kernel_width or np.sqrt(training_data.shape[1]) * .75
+
         self.categorical_names = categorical_names
         self.categorical_features = categorical_features
         if self.categorical_names is None:
@@ -155,13 +159,6 @@ class LimeTabularExplainer(object):
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(
                 training_data)
-
-        if kernel_width is None:
-            kernel_width = np.sqrt(training_data.shape[1]) * .75
-        kernel_width = float(kernel_width)
-
-        def kernel(d):
-            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
 
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel, verbose)
@@ -193,7 +190,7 @@ class LimeTabularExplainer(object):
 
     def explain_instance(self, data_row, classifier_fn, labels=(1,),
                          top_labels=None, num_features=10, num_samples=5000,
-                         distance_metric='euclidean', model_regressor=None):
+                         distance_metric='euclidean', model_regressor=None, kernel_width=None):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features
@@ -221,6 +218,11 @@ class LimeTabularExplainer(object):
             An Explanation object (see explanation.py) with the corresponding
             explanations.
         """
+
+        kernel_width = float(kernel_width) or self.default_kernel_width
+
+        def kernel(d):
+            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
         data, inverse = self.__data_inverse(data_row, num_samples)
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
 
