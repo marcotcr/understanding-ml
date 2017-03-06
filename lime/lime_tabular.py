@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn.preprocessing
 
+from warnings import warn
+
 from lime.discretize import QuartileDiscretizer
 from lime.discretize import DecileDiscretizer
 from lime.discretize import EntropyDiscretizer
@@ -100,9 +102,9 @@ class LimeTabularExplainer(object):
 
     def __init__(self, training_data, training_labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
-                 kernel_width=None, verbose=False, class_names=None,
+                 verbose=False, class_names=None,
                  feature_selection='auto', discretize_continuous=True,
-                 discretizer='quartile'):
+                 discretizer='quartile', default_kernel_width = None):
         """Init function.
 
         Args:
@@ -117,7 +119,8 @@ class LimeTabularExplainer(object):
             categorical_names: map from int to list of names, where
                 categorical_names[x][y] represents the name of the yth value of
                 column x.
-            kernel_width: kernel width for the exponential kernel.
+            default_kernel_width: kernel width for the exponential kernel. If none will use
+                3/4 * sqrt(len(training_data))
             If None, defaults to sqrt(number of columns) * 0.75
             verbose: if true, print local prediction values from linear model
             class_names: list of class names, ordered according to whatever the
@@ -132,12 +135,17 @@ class LimeTabularExplainer(object):
             discretizer: only matters if discretize_continuous is True. Options
                 are 'quartile', 'decile' or 'entropy'
         """
+
+        
+        self.default_kernel_width = default_kernel_width or np.sqrt(training_data.shape[1]) * .75
+
         self.categorical_names = categorical_names
         self.categorical_features = categorical_features
         if self.categorical_names is None:
             self.categorical_names = {}
         if self.categorical_features is None:
             self.categorical_features = []
+        self.training_labels = training_labels or np.array(range(training_data))
         self.discretizer = None
         if discretize_continuous:
             if discretizer == 'quartile':
@@ -158,13 +166,6 @@ class LimeTabularExplainer(object):
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(
                 training_data)
-
-        if kernel_width is None:
-            kernel_width = np.sqrt(training_data.shape[1]) * .75
-        kernel_width = float(kernel_width)
-
-        def kernel(d):
-            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
 
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel, verbose)
@@ -208,7 +209,7 @@ class LimeTabularExplainer(object):
 
     def explain_instance(self, data_row, classifier_fn, labels=(1,),
                          top_labels=None, num_features=10, num_samples=5000,
-                         distance_metric='euclidean', model_regressor=None, testing=False):
+                         distance_metric='euclidean', model_regressor=None, kernel_width=None, testing=False):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features
@@ -236,7 +237,14 @@ class LimeTabularExplainer(object):
             An Explanation object (see explanation.py) with the corresponding
             explanations.
         """
-        data, inverse = self.__data_inverse(data_row, num_samples, testing)
+
+
+        kernel_width = float(kernel_width) or self.default_kernel_width
+
+        def kernel(d):
+            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
+        data, inverse = self.__data_inverse(data_row, num_samples)
+
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
 
         # Adding backdoors to understand the data distribution. This is enabled only from
@@ -266,6 +274,14 @@ class LimeTabularExplainer(object):
         ).ravel()
 
         yss = classifier_fn(inverse)
+
+        if not np.allclose(yss.sum(axis=1), 1.0):
+            warn("""
+                    Predictions are not summing to 1, and 
+                    thus does not constitute a probability space.
+                    Check that you classifier outputs probabilities
+                    (Not log_probas, or class predictions).
+                    """)
         if self.class_names is None:
             self.class_names = [str(x) for x in range(yss[0].shape[0])]
         else:
@@ -312,6 +328,7 @@ class LimeTabularExplainer(object):
                 scaled_data, yss, distances, label, num_features,
                 model_regressor=model_regressor,
                 feature_selection=self.feature_selection)
+
         return ret_exp
 
     def __data_inverse(self,
