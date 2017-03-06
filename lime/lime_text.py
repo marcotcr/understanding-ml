@@ -14,7 +14,6 @@ import sklearn
 from . import explanation
 from . import lime_base
 
-
 class TextDomainMapper(explanation.DomainMapper):
     """Maps feature ids to words or word-positions"""
 

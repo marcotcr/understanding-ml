@@ -73,7 +73,7 @@ class TableDomainMapper(explanation.DomainMapper):
         if not show_table:
             return ''
         weights = [0] * len(self.feature_names)
-        for x in exp:vagran
+        for x in exp:
             weights[x[0]] = x[1]
         out_list = list(zip(self.exp_feature_names, self.feature_values,
                             weights))
@@ -113,7 +113,8 @@ class LimeTabularExplainer(object):
             categorical_names: map from int to list of names, where
                 categorical_names[x][y] represents the name of the yth value of
                 column x.
-            kernel_width: kernel width for the exponential kernel.
+            default_kernel_width: kernel width for the exponential kernel. If none will use
+                3/4 * sqrt(len(training_data))
             If None, defaults to sqrt(number of columns) * 0.75
             verbose: if true, print local prediction values from linear model
             class_names: list of class names, ordered according to whatever the
