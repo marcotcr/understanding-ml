@@ -137,5 +137,26 @@ class TestLimeTabular(unittest.TestCase):
                           "Petal Length is a major feature")
 
 
+    def test_lime_explainer_high_dim(self):
+        np.random.seed(1)
+        feature_names = ['feature_{0}'.format(str(x))
+                         for x in list(range(2000))]
+        X, y = datasets.make_classification(n_features=2000, n_samples=1000)
+        train, test, labels_train, labels_test = (
+            sklearn.cross_validation.train_test_split(X, y,
+                                                      train_size=0.80))
+
+        rf = RandomForestClassifier(n_estimators=500)
+        rf.fit(train, labels_train)
+        i = np.random.randint(0, test.shape[0])
+
+        explainer = LimeTabularExplainer(train,
+                                         feature_names=feature_names,
+                                         discretize_continuous=False)
+
+        exp = explainer.explain_instance(test[i], rf.predict_proba,
+                                         num_features=2, high_dim=False)
+        self.assertIsNotNone(exp)
+
 if __name__ == '__main__':
     unittest.main()

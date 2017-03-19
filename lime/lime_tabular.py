@@ -190,7 +190,8 @@ class LimeTabularExplainer(object):
 
     def explain_instance(self, data_row, classifier_fn, labels=(1,),
                          top_labels=None, num_features=10, num_samples=5000,
-                         distance_metric='euclidean', model_regressor=None):
+                         distance_metric='euclidean',
+                         model_regressor=None, high_dim=False):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features
@@ -219,6 +220,10 @@ class LimeTabularExplainer(object):
             explanations.
         """
         data, inverse = self.__data_inverse(data_row, num_samples)
+        if high_dim:
+            # remove the first row
+            data = np.delete(data, 0, 0)
+            inverse = np.delete(inverse, 0, 0)
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
 
         distances = sklearn.metrics.pairwise_distances(
