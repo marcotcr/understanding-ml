@@ -213,3 +213,142 @@ class Explanation(object):
         ''' % (random_id, predict_proba_js, exp_js, raw_js)
         out += u'</body></html>'
         return out
+class RegressionsExplanation(object):
+    """Object returned by explainers."""
+    def __init__(self, domain_mapper):
+        """Initializer.
+        Args:
+            domain_mapper: must inherit from DomainMapper class
+            class_names: list of class names
+        """
+        self.domain_mapper = domain_mapper
+        self.local_exp = {}
+        self.intercept = {}
+        self.predicted_value = None
+        self.min_value = 0.0
+        self.max_value = 1.0
+        self.score = None
+
+    def as_list(self, label='positive', **kwargs):
+        """Returns the explanation as a list.
+        Args:
+            label: desired label. If you ask for a label for which an
+                explanation wasn't computed, will throw an exception.
+            kwargs: keyword arguments, passed to domain_mapper
+        Returns:
+            list of tuples (representation, weight), where representation is
+            given by domain_mapper. Weight is a float.
+        """
+        return self.domain_mapper.map_exp_ids(self.local_exp[label], **kwargs)
+
+    def as_map(self):
+        """Returns the map of explanations.
+        Returns:
+            Map from label to list of tuples (feature_id, weight).
+        """
+        return self.local_exp
+
+    def as_pyplot_figure(self, **kwargs):
+        """Returns the explanation as a pyplot figure.
+        Will throw an error if you don't have matplotlib installed
+        Args:
+            kwargs: keyword arguments, passed to domain_mapper
+        Returns:
+            pyplot figure (barchart).
+        """
+        import matplotlib.pyplot as plt
+        exp = self.as_list(label, **kwargs)
+        fig = plt.figure()
+        vals = [x[1] for x in exp]
+        names = [x[0] for x in exp]
+        vals.reverse()
+        names.reverse()
+        colors = ['green' if x > 0 else 'red' for x in vals]
+        pos = np.arange(len(exp)) + .5
+        plt.barh(pos, vals, align='center', color=colors)
+        plt.yticks(pos, names)
+        plt.title('Local explanation for class %s' % self.class_names[label])
+        return fig
+
+    def show_in_notebook(self, show_predicted_value=True, **kwargs):
+        """Shows html explanation in ipython notebook.
+           See as_html for parameters.
+           This will throw an error if you don't have IPython installed"""
+        from IPython.core.display import display, HTML
+        display(HTML(self.as_html(show_predicted_value = show_predicted_value, **kwargs)))
+
+    def save_to_file(self, file_path, labels=None, show_predicted_value=True,
+                     **kwargs):
+        """Saves html explanation to file. See as_html for paramaters.
+        Params:
+            file_path: file to save explanations to
+        """
+        file_ = open(file_path, 'w', encoding='utf8')
+        file_.write(self.as_html(show_predicted_value, **kwargs))
+        file_.close()
+
+    def as_html(self, show_predicted_value=False, **kwargs):
+        """Returns the explanation as an html page.
+        Args:
+            show_expected_value: if true, add  barchart with expected value
+            kwargs: keyword arguments, passed to domain_mapper
+        Returns:
+            code for an html page, including javascript includes.
+        """
+
+        labels = [1]
+        class_names = ['negative','positive']
+
+        def jsonize(x): return json.dumps(x)
+
+        this_dir, _ = os.path.split(__file__)
+        bundle = open(os.path.join(this_dir, 'bundle.js'),
+                      encoding="utf8").read()
+
+        out = u'''<html>
+        <meta http-equiv="content-type" content="text/html; charset=UTF8">
+        <head><script>%s </script></head><body>''' % bundle
+        random_id = id_generator()
+        out += u'''
+        <div class="lime top_div" id="top_div%s"></div>
+        ''' % random_id
+        predict_value_js = ''
+        if show_predicted_value:
+
+            #reference self.predicted_value
+            #(svg, predicted_value, min_value, max_value)
+            predict_value_js = u'''
+                    var pp_div = top_div.append('div')
+                                        .classed('lime predicted_value', true);
+                    var pp_svg = pp_div.append('svg').style('width', '100%%');
+                    var pp = new lime.PredictedValue(pp_svg, %s, %s, %s);
+                    ''' % (jsonize(self.predicted_value),
+                           jsonize(float(self.min_value)),
+                           jsonize(float(self.max_value)))
+
+
+
+        exp_js = '''var exp_div;
+            var exp = new lime.Explanation(%s);
+        ''' % (jsonize(class_names))
+
+        for label in labels:
+            exp = jsonize(self.as_list(label))
+            exp_js += u'''
+            exp_div = top_div.append('div').classed('lime explanation', true);
+            exp.show(%s, %s, exp_div);
+            ''' % (exp, label)
+        raw_js = '''var raw_div = top_div.append('div');'''
+        raw_js += self.domain_mapper.visualize_instance_html(
+            self.local_exp[labels[0]], labels[0], 'raw_div', 'exp', **kwargs)
+        out += u'''
+        <script>
+        var top_div = d3.select('#top_div%s').classed('lime top_div', true);
+        %s
+        %s
+        %s
+        </script>
+        ''' % (random_id, predict_value_js, exp_js, raw_js)
+        out += u'</body></html>'
+
+        return out

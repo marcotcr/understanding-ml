@@ -7,14 +7,22 @@ import json
 
 import numpy as np
 import sklearn
+import matplotlib.pyplot as plt
+import pandas as pd
 import sklearn.preprocessing
+
+from warnings import warn
 
 from lime.discretize import QuartileDiscretizer
 from lime.discretize import DecileDiscretizer
 from lime.discretize import EntropyDiscretizer
+
 from . import explanation
 from . import lime_base
 
+## A simple helper function to round values
+def round_stuff(x):
+    return ['%.2f' % a for a in x]
 
 class TableDomainMapper(explanation.DomainMapper):
     """Maps feature ids to names, generates table views, etc"""
@@ -94,9 +102,9 @@ class LimeTabularExplainer(object):
 
     def __init__(self, training_data, training_labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
-                 kernel_width=None, verbose=False, class_names=None,
+                 verbose=False, class_names=None,
                  feature_selection='auto', discretize_continuous=True,
-                 discretizer='quartile'):
+                 discretizer='quartile', default_kernel_width = None):
         """Init function.
 
         Args:
@@ -111,7 +119,8 @@ class LimeTabularExplainer(object):
             categorical_names: map from int to list of names, where
                 categorical_names[x][y] represents the name of the yth value of
                 column x.
-            kernel_width: kernel width for the exponential kernel.
+            default_kernel_width: kernel width for the exponential kernel. If none will use
+                3/4 * sqrt(len(training_data))
             If None, defaults to sqrt(number of columns) * 0.75
             verbose: if true, print local prediction values from linear model
             class_names: list of class names, ordered according to whatever the
@@ -126,12 +135,17 @@ class LimeTabularExplainer(object):
             discretizer: only matters if discretize_continuous is True. Options
                 are 'quartile', 'decile' or 'entropy'
         """
+
+        
+        self.default_kernel_width = default_kernel_width or np.sqrt(training_data.shape[1]) * .75
+
         self.categorical_names = categorical_names
         self.categorical_features = categorical_features
         if self.categorical_names is None:
             self.categorical_names = {}
         if self.categorical_features is None:
             self.categorical_features = []
+        self.training_labels = training_labels or np.array(range(training_data))
         self.discretizer = None
         if discretize_continuous:
             if discretizer == 'quartile':
@@ -152,13 +166,6 @@ class LimeTabularExplainer(object):
             self.categorical_features = range(training_data.shape[1])
             discretized_training_data = self.discretizer.discretize(
                 training_data)
-
-        if kernel_width is None:
-            kernel_width = np.sqrt(training_data.shape[1]) * .75
-        kernel_width = float(kernel_width)
-
-        def kernel(d):
-            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
 
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel, verbose)
@@ -188,9 +195,27 @@ class LimeTabularExplainer(object):
             self.scaler.mean_[feature] = 0
             self.scaler.scale_[feature] = 1
 
+
+    @staticmethod
+    def round_stuff(x):
+        return ['%.2f' % a for a in x]
+
+    def __backdoor_for_distribution_evaluation(self, input_dataframe, figure_name,
+                                             plot_type='density', color="DarkGreen", dump_file_as_csv=False):
+        """A backdoor to evaluate and understand distribution
+        """
+        fig = plt.figure()
+        df = pd.DataFrame(input_dataframe[:,0], columns=['b'])
+        df['a'] = pd.Series(list(range(len(df))))
+        plot = df.plot(kind=plot_type, color=color, x='a', y='b')
+        fig = plot.get_figure()
+        fig.savefig('{}.png'.format(figure_name))
+        df.to_csv("{}.csv".format(figure_name), sep=',') if dump_file_as_csv else None
+
+
     def explain_instance(self, data_row, classifier_fn, labels=(1,),
                          top_labels=None, num_features=10, num_samples=5000,
-                         distance_metric='euclidean', model_regressor=None):
+                         distance_metric='euclidean', model_regressor=None, kernel_width=None, testing=False):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features
@@ -218,8 +243,35 @@ class LimeTabularExplainer(object):
             An Explanation object (see explanation.py) with the corresponding
             explanations.
         """
+
+
+        kernel_width = float(kernel_width) or self.default_kernel_width
+
+        def kernel(d):
+            return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
         data, inverse = self.__data_inverse(data_row, num_samples)
+
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
+
+        # Adding backdoors to understand the data distribution. This is enabled only from
+        # a testing environment, because depending on the datasize, it may be very expensive.
+        if testing:
+            print("Scaler mean: {}".format(self.scaler.mean_))
+            print("Scaler scale: {}".format(self.scaler.scale_))
+
+            print("data_row shape: {}".format(data_row.shape))
+            plt.plot(data_row[0], 'bo')
+            plt.savefig('original_data_row.png')
+
+            print("scaled_data: {}".format(scaled_data[:,0]))
+            self.__backdoor_for_distribution_evaluation(scaled_data, figure_name='scaled_data', plot_type='scatter',
+                                                        color="DarkGreen")
+
+            print("inverse shape : {}".format(inverse.shape))
+            self.__backdoor_for_distribution_evaluation(scaled_data, figure_name='inversed_sample', plot_type='density',
+                                                        color="DarkBlue")
+            self.__backdoor_for_distribution_evaluation(scaled_data, figure_name='inversed_sample', plot_type='hist',
+                                                        color="DarkBlue", dump_file_as_csv=True)
 
         distances = sklearn.metrics.pairwise_distances(
             scaled_data,
@@ -228,6 +280,14 @@ class LimeTabularExplainer(object):
         ).ravel()
 
         yss = classifier_fn(inverse)
+
+        if not np.allclose(yss.sum(axis=1), 1.0):
+            warn("""
+                    Predictions are not summing to 1, and 
+                    thus does not constitute a probability space.
+                    Check that you classifier outputs probabilities
+                    (Not log_probas, or class predictions).
+                    """)
         if self.class_names is None:
             self.class_names = [str(x) for x in range(yss[0].shape[0])]
         else:
@@ -236,10 +296,8 @@ class LimeTabularExplainer(object):
         if feature_names is None:
             feature_names = [str(x) for x in range(data_row.shape[0])]
 
-        def round_stuff(x):
-            return ['%.2f' % a for a in x]
+        values = self.round_stuff(data_row)
 
-        values = round_stuff(data_row)
         for i in self.categorical_features:
             if self.discretizer is not None and i in self.discretizer.lambdas:
                 continue
@@ -276,11 +334,12 @@ class LimeTabularExplainer(object):
                 scaled_data, yss, distances, label, num_features,
                 model_regressor=model_regressor,
                 feature_selection=self.feature_selection)
+
         return ret_exp
 
     def __data_inverse(self,
                        data_row,
-                       num_samples):
+                       num_samples, testing=False):
         """Generates a neighborhood around a prediction.
 
         For numerical features, perturb them by sampling from a Normal(0,1) and
@@ -304,6 +363,13 @@ class LimeTabularExplainer(object):
         """
         data = np.zeros((num_samples, data_row.shape[0]))
         categorical_features = range(data_row.shape[0])
+
+        if testing:
+            print("Categorical_features: {}".format(categorical_features))
+            print("discretizer: {}".format(self.discretizer))
+            print("scaler_mean: {}".format(self.scaler.mean_))
+            print("scaler_scale: {}".format(self.scaler.scale_))
+
         if self.discretizer is None:
             data = np.random.normal(
                 0, 1, num_samples * data_row.shape[0]).reshape(
@@ -315,6 +381,7 @@ class LimeTabularExplainer(object):
             first_row = self.discretizer.discretize(data_row)
         data[0] = data_row.copy()
         inverse = data.copy()
+
         for column in categorical_features:
             values = self.feature_values[column]
             freqs = self.feature_frequencies[column]
@@ -330,3 +397,111 @@ class LimeTabularExplainer(object):
             inverse[1:] = self.discretizer.undiscretize(inverse[1:])
         inverse[0] = data_row
         return data, inverse
+
+    def explain_regressor_instance(self, data_row, predict_fn, num_features=10,
+                                   num_samples=5000, distance_metric='euclidean',
+                                   model_regressor=None, testing=False):
+        """Generates explanations for a prediction.
+        First, we generate neighborhood data by randomly perturbing features
+        from the instance (see __data_inverse). We then learn locally weighted
+        linear models on this neighborhood data to explain each of the classes
+        in an interpretable way (see lime_base.py).
+        Args:
+            data_row: 1d numpy array, corresponding to a row
+            classifier_fn: classifier prediction probability function, which
+                takes a numpy array and outputs prediction probabilities.  For
+                ScikitClassifiers , this is classifier.predict_proba.
+            labels: iterable with labels to be explained.
+            top_labels: if not None, ignore labels and produce explanations for
+                the K labels with highest prediction probabilities, where K is
+                this parameter.
+            num_features: maximum number of features present in explanation
+            num_samples: size of the neighborhood to learn the linear model
+            distance_metric: the distance metric to use for weights.
+            model_regressor: sklearn regressor to use in explanation. Defaults
+            to Ridge regression in LimeBase. Must have model_regressor.coef_
+            and 'sample_weight' as a parameter to model_regressor.fit()
+        Returns:
+            An Explanation object (see explanation.py) with the corresponding
+            explanations.
+        """
+        labels = ['negative', 'positive']
+
+
+        data, inverse = self.__data_inverse(data_row, num_samples)
+
+        scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
+
+
+        distances = sklearn.metrics.pairwise_distances(
+            scaled_data,
+            scaled_data[0].reshape(1, -1),
+            metric=distance_metric
+        ).ravel()
+
+        yss = predict_fn(inverse)
+        predicted_value = yss[0]
+        min_y = min(yss)
+        max_y = max(yss)
+
+        if not isinstance(yss, np.ndarray): raise exceptions.ModelException("Your model needs to output numpy arrays")
+
+        # if predictions are a single column, then either the model is a predict_proba
+        #with only a single class (where probabilities are all one),
+        #or the model is predicting the most likely class. We will assume
+        #its the latter case, but perhaps we eventually want to check for the former case.
+        if len(yss.shape) == 1:
+            pass
+        else:
+            raise exceptions.ModelException("Your regressor model is outputting arrays with {} dimensions".format(len(yss.shape)))
+
+        yss = yss[:, np.newaxis] #add a dimension
+
+        feature_names = copy.deepcopy(self.feature_names)
+
+        if feature_names is None:
+            feature_names = [str(x) for x in range(data_row.shape[0])]
+
+        values = self.round_stuff(data_row)
+
+        for i in self.categorical_features:
+            if self.discretizer is not None and i in self.discretizer.lambdas:
+                continue
+            name = int(data_row[i])
+            if i in self.categorical_names:
+                name = self.categorical_names[i][name]
+            feature_names[i] = '%s=%s' % (feature_names[i], name)
+            values[i] = 'True'
+        categorical_features = self.categorical_features
+        discretized_feature_names = None
+        if self.discretizer is not None:
+            categorical_features = range(data.shape[1])
+            discretized_instance = self.discretizer.discretize(data_row)
+            discretized_feature_names = copy.deepcopy(feature_names)
+            for f in self.discretizer.names:
+                discretized_feature_names[f] = self.discretizer.names[f][int(
+                    discretized_instance[f])]
+
+        domain_mapper = TableDomainMapper(
+            feature_names, values, scaled_data[0],
+            categorical_features=categorical_features,
+            discretized_feature_names=discretized_feature_names)
+        ret_exp = explanation.RegressionsExplanation(domain_mapper=domain_mapper)
+        ret_exp.predicted_value = predicted_value
+        ret_exp.min_value = min_y
+        ret_exp.max_value = max_y
+
+
+
+
+        (ret_exp.intercept[1],
+         ret_exp.local_exp[1],
+         ret_exp.score) = self.base.explain_instance_with_data(
+            scaled_data, yss, distances, 0, num_features,
+            model_regressor=model_regressor,
+            feature_selection=self.feature_selection)
+
+        ret_exp.intercept[0] = ret_exp.intercept[1]
+        ret_exp.local_exp[0] = [(i, -1 * j) for i,j in ret_exp.local_exp[1]]
+
+        return ret_exp

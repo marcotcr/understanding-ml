@@ -1,3 +1,5 @@
+#Note: We will be removing Lime Text from this module
+
 # lime
 
 [![Build Status](https://travis-ci.org/marcotcr/lime.svg?branch=master)](https://travis-ci.org/marcotcr/lime)

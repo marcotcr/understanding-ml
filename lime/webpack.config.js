@@ -14,12 +14,14 @@ module.exports = {
                 loader: 'babel-loader',
                 test: path.join(__dirname, 'js'),
                 query: {
-                  presets: 'es2015-ie',
-                },
+                   presets: 'es2015-ie',
+                  },
+
             },
             {
               test: /\.css$/,
-              loaders: ['style', 'css'],
+              loaders: ['style-loader', 'css-loader'],
+
             }
 
         ]
