@@ -11,6 +11,7 @@ from sklearn.utils import check_random_state
 from . import lime_base
 
 from skimage.segmentation import quickshift
+from skimage.color import gray2rgb
 
 
 class ImageExplanation(object):
@@ -156,8 +157,13 @@ class LimeImageExplainer(object):
         """
         if random_seed is None:
             random_seed = self.random_state.randint(0, high=1000)
-
-        segments = quickshift(image, kernel_size=qs_kernel_size,
+        if len(image.shape) == 2:
+            qs_image = gray2rgb(image)
+        elif image.shape[2] == 1:
+            qs_image = gray2rgb(image[..., 0])
+        else:
+            qs_image = image
+        segments = quickshift(qs_image, kernel_size=qs_kernel_size,
                               max_dist=200, ratio=0.2, random_seed=random_seed)
         fudged_image = image.copy()
         if hide_color is None:
