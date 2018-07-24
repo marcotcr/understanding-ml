@@ -6,7 +6,7 @@ import sklearn
 import sklearn.tree
 from sklearn.utils import check_random_state
 from abc import ABCMeta, abstractmethod
-
+import copy
 
 class BaseDiscretizer():
     """
@@ -18,7 +18,7 @@ class BaseDiscretizer():
 
     __metaclass__ = ABCMeta  # abstract class
 
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None, scaler = None, random_state=None):
         """Initializer
         Args:
             data: numpy 2d array
@@ -41,7 +41,7 @@ class BaseDiscretizer():
         self.mins = {}
         self.maxs = {}
         self.random_state = check_random_state(random_state)
-
+        self.scaler = scaler
         # To override when implementing a custom binning
         bins = self.bins(data, labels)
         bins = [np.unique(x) for x in bins]
@@ -50,12 +50,18 @@ class BaseDiscretizer():
             n_bins = qts.shape[0]  # Actually number of borders (= #bins-1)
             boundaries = np.min(data[:, feature]), np.max(data[:, feature])
             name = feature_names[feature]
-
-            self.names[feature] = ['%s <= %.2f' % (name, qts[0])]
+            #ADD: inverse transform output value back to the natural value
+            qts_name = copy.deepcopy(qts)
+            if scaler != None:
+                for i in range(n_bins):
+                    dummy = np.zeros(len(bins))
+                    dummy[feature] = qts[i]
+                    qts_name[i] = scaler.inverse_transform(dummy)[feature]
+            self.names[feature] = ['%s <= %.2f' % (name, qts_name[0])]
             for i in range(n_bins - 1):
                 self.names[feature].append('%.2f < %s <= %.2f' %
-                                           (qts[i], name, qts[i + 1]))
-            self.names[feature].append('%s > %.2f' % (name, qts[n_bins - 1]))
+                                           (qts_name[i], name, qts_name[i + 1]))
+            self.names[feature].append('%s > %.2f' % (name, qts_name[n_bins - 1]))
 
             self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
             discretized = self.lambdas[feature](data[:, feature])
@@ -118,11 +124,11 @@ class BaseDiscretizer():
 
 
 class QuartileDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None, scaler = None):
 
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state)
+                                 random_state=random_state,scaler = scaler)
 
     def bins(self, data, labels):
         bins = []
@@ -133,10 +139,10 @@ class QuartileDiscretizer(BaseDiscretizer):
 
 
 class DecileDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None,scaler = None):
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state)
+                                 random_state=random_state,scaler = scaler)
 
     def bins(self, data, labels):
         bins = []
@@ -148,13 +154,13 @@ class DecileDiscretizer(BaseDiscretizer):
 
 
 class EntropyDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None):
+    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None,scaler = None):
         if(labels is None):
             raise ValueError('Labels must be not None when using \
                              EntropyDiscretizer')
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state)
+                                 random_state=random_state,scaler = scaler)
 
     def bins(self, data, labels):
         bins = []
