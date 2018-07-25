@@ -81,7 +81,8 @@ class TableDomainMapper(explanation.DomainMapper):
         outer_scaler = self.outer_scaler
         outer_value = self.feature_values
         if outer_scaler is not None:
-            outer_value[0:6] = outer_scaler.inverse_transform(list(map(float, self.feature_values[0:6]))).round()
+            outer_list = list(map(float, self.feature_values[0:6]))
+            outer_value[0:6] = outer_scaler.inverse_transform(outer_list).round()
         out_list = list(zip(self.exp_feature_names,
                             outer_value,
                             weights))
