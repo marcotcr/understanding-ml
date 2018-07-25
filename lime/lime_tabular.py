@@ -319,12 +319,12 @@ class LimeTabularExplainer(object):
             
         # get column names if numpy.ndarray or pandas df:
         try:
-            col_names= data_row.columns
+            col_names= list(data_row.columns)
         except ValueError:
-            col_names=data_row.names
+            col_names=list(data_row.dtype.names)
 
 
-        if np.sum( [1 if str(k).isdigit() else 0 for k in col_names])!=len(list(col_names)):
+        if np.sum( [1 if str(k).isdigit() else 0 for k in col_names])!=len(col_names):
             values = self.convert_and_round(data_row.values[0])
         else:
             values = self.convert_and_round(data_row)
