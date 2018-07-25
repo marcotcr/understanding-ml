@@ -320,7 +320,7 @@ class LimeTabularExplainer(object):
         # get column names if numpy.ndarray or pandas df:
         try:
             col_names= list(data_row.columns)
-        except ValueError:
+        except AttributeError:
             col_names=list(data_row.dtype.names)
 
 
