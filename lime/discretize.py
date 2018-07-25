@@ -53,17 +53,16 @@ class BaseDiscretizer():
             boundaries = np.min(data[:, feature]), np.max(data[:, feature])
             name = feature_names[feature]
             # ADD: inverse transform output value back to the natural value
-            qts_name = copy.deepcopy(qts)
+            qts_cp = copy.deepcopy(qts)
             if scaler is not None:
                 for i in range(n_bins):
                     dummy = np.zeros(len(bins))
                     dummy[feature] = qts[i]
-                    qts_name[i] = scaler.inverse_transform(dummy)[feature]
-            self.names[feature] = ['%s <= %.2f' % (name, qts_name[0])]
+                    qts_cp[i] = scaler.inverse_transform(dummy)[feature]
+            self.names[feature] = ['%s <= %.2f' % (name, qts_cp[0])]
             for i in range(n_bins - 1):
-                self.names[feature].append('%.2f < %s <= %.2f' % (qts_name[i], 
-                                                        name, qts_name[i + 1]))
-            self.names[feature].append('%s > %.2f' % (name, qts_name[n_bins - 1]))
+                self.names[feature].append('%.2f < %s <= %.2f' % (qts_cp[i],name, qts_cp[i + 1]))
+            self.names[feature].append('%s > %.2f' % (name, qts_cp[n_bins - 1]))
             self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
             discretized = self.lambdas[feature](data[:, feature])
 
