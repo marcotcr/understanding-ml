@@ -61,7 +61,7 @@ class BaseDiscretizer():
                     qts_cp[i] = scaler.inverse_transform(dummy)[feature]
             self.names[feature] = ['%s <= %.2f' % (name, qts_cp[0])]
             for i in range(n_bins - 1):
-                self.names[feature].append('%.2f < %s <= %.2f' % (qts_cp[i],name, qts_cp[i + 1]))
+                self.names[feature].append('%.2f < %s <= %.2f' % (qts_cp[i], name, qts_cp[i + 1]))
             self.names[feature].append('%s > %.2f' % (name, qts_cp[n_bins - 1]))
             self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
             discretized = self.lambdas[feature](data[:, feature])
