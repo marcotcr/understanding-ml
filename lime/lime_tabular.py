@@ -23,7 +23,7 @@ class TableDomainMapper(explanation.DomainMapper):
     """Maps feature ids to names, generates table views, etc"""
 
     def __init__(self, feature_names, feature_values, scaled_row,
-                 categorical_features, discretized_feature_names=None,outer_scaler = None):
+                 categorical_features, discretized_feature_names=None, outer_scaler=None):
         """Init.
 
         Args:
@@ -39,7 +39,7 @@ class TableDomainMapper(explanation.DomainMapper):
         self.scaled_row = scaled_row
         self.all_categorical = len(categorical_features) == len(scaled_row)
         self.categorical_features = categorical_features
-        self.outer_scaler = outer_scaler;
+        self.outer_scaler = outer_scaler
 
     def map_exp_ids(self, exp):
         """Maps ids to feature names.
@@ -80,7 +80,7 @@ class TableDomainMapper(explanation.DomainMapper):
         # ADD: inverse transform output value back to the natural value
         outer_scaler = self.outer_scaler
         outer_value = self.feature_values
-        if outer_scaler != None:
+        if outer_scaler is not None:
             outer_value[0:6] = outer_scaler.inverse_transform(list(map(float, self.feature_values[0:6]))).round()
         out_list = list(zip(self.exp_feature_names,
                             outer_value,
@@ -174,15 +174,15 @@ class LimeTabularExplainer(object):
             if discretizer == 'quartile':
                 self.discretizer = QuartileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels, scaler = self.outer_scaler)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif discretizer == 'decile':
                 self.discretizer = DecileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels, scaler = self.outer_scaler)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif discretizer == 'entropy':
                 self.discretizer = EntropyDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels, scaler = self.outer_scaler)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif isinstance(discretizer, BaseDiscretizer):
                 self.discretizer = discretizer
             else:
@@ -340,8 +340,6 @@ class LimeTabularExplainer(object):
         if self.discretizer is not None:
             categorical_features = range(data.shape[1])
             discretized_instance = self.discretizer.discretize(data_row)
-            #Here it is the domains of the each parameter
-            #print(self.discretizer.names)
             discretized_feature_names = copy.deepcopy(feature_names)
             for f in self.discretizer.names:
                 discretized_feature_names[f] = self.discretizer.names[f][int(
@@ -352,7 +350,7 @@ class LimeTabularExplainer(object):
                                           scaled_data[0],
                                           categorical_features=categorical_features,
                                           discretized_feature_names=discretized_feature_names,
-                                          outer_scaler = outer_scaler)
+                                          outer_scaler=outer_scaler)
         ret_exp = explanation.Explanation(domain_mapper,
                                           mode=self.mode,
                                           class_names=self.class_names)

@@ -274,8 +274,6 @@ class Explanation(object):
         if self.mode == "regression" and show_predicted_value:
             # reference self.predicted_value
             # (svg, predicted_value, min_value, max_value)
-            if self.min_value < 0:
-                self.min_value = 0
             predict_value_js = u'''
                     var pp_div = top_div.append('div')
                                         .classed('lime predicted_value', true);

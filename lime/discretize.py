@@ -8,6 +8,7 @@ from sklearn.utils import check_random_state
 from abc import ABCMeta, abstractmethod
 import copy
 
+
 class BaseDiscretizer():
     """
     Abstract class - Build a class that inherits from this class to implement
@@ -18,7 +19,8 @@ class BaseDiscretizer():
 
     __metaclass__ = ABCMeta  # abstract class
 
-    def __init__(self, data, categorical_features, feature_names, labels=None, scaler = None, random_state=None):
+    def __init__(self, data, categorical_features, feature_names,
+                 labels=None, scaler=None, random_state=None):
         """Initializer
         Args:
             data: numpy 2d array
@@ -50,19 +52,17 @@ class BaseDiscretizer():
             n_bins = qts.shape[0]  # Actually number of borders (= #bins-1)
             boundaries = np.min(data[:, feature]), np.max(data[:, feature])
             name = feature_names[feature]
-            #ADD: inverse transform output value back to the natural value
+            # ADD: inverse transform output value back to the natural value
             qts_name = copy.deepcopy(qts)
-            if scaler != None:
+            if scaler is not None:
                 for i in range(n_bins):
                     dummy = np.zeros(len(bins))
                     dummy[feature] = qts[i]
                     qts_name[i] = scaler.inverse_transform(dummy)[feature]
             self.names[feature] = ['%s <= %.2f' % (name, qts_name[0])]
             for i in range(n_bins - 1):
-                self.names[feature].append('%.2f < %s <= %.2f' %
-                                           (qts_name[i], name, qts_name[i + 1]))
+                self.names[feature].append('%.2f < %s <= %.2f' % (qts_name[i], name, qts_name[i + 1]))
             self.names[feature].append('%s > %.2f' % (name, qts_name[n_bins - 1]))
-
             self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
             discretized = self.lambdas[feature](data[:, feature])
 
@@ -113,7 +113,8 @@ class BaseDiscretizer():
 
             def get_inverse(q):
                 return max(mins[q],
-                           min(self.random_state.normal(means[q], stds[q]), maxs[q]))
+                           min(self.random_state.normal(
+                               means[q], stds[q]), maxs[q]))
             if len(data.shape) == 1:
                 q = int(ret[feature])
                 ret[feature] = get_inverse(q)
@@ -124,11 +125,12 @@ class BaseDiscretizer():
 
 
 class QuartileDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None, scaler = None):
+    def __init__(self, data, categorical_features, feature_names,
+                 labels=None, random_state=None, scaler=None):
 
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state,scaler = scaler)
+                                 random_state=random_state, scaler=scaler)
 
     def bins(self, data, labels):
         bins = []
@@ -139,10 +141,11 @@ class QuartileDiscretizer(BaseDiscretizer):
 
 
 class DecileDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None,scaler = None):
+    def __init__(self, data, categorical_features, feature_names,
+                 labels=None, random_state=None, scaler=None):
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state,scaler = scaler)
+                                 random_state=random_state, scaler=scaler)
 
     def bins(self, data, labels):
         bins = []
@@ -154,13 +157,14 @@ class DecileDiscretizer(BaseDiscretizer):
 
 
 class EntropyDiscretizer(BaseDiscretizer):
-    def __init__(self, data, categorical_features, feature_names, labels=None, random_state=None,scaler = None):
+    def __init__(self, data, categorical_features, feature_names,
+                 labels=None, random_state=None, scaler=None):
         if(labels is None):
             raise ValueError('Labels must be not None when using \
                              EntropyDiscretizer')
         BaseDiscretizer.__init__(self, data, categorical_features,
                                  feature_names, labels=labels,
-                                 random_state=random_state,scaler = scaler)
+                                 random_state=random_state, scaler=scaler)
 
     def bins(self, data, labels):
         bins = []
