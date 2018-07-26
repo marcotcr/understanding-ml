@@ -321,12 +321,13 @@ class LimeTabularExplainer(object):
         try:
             col_names= list(data_row.columns)
         except AttributeError:
-            if data_row is not None:
+            if data_row.dtype.names is not None:
                 col_names=list(data_row.dtype.names)
-
-
-        if np.sum( [1 if str(k).isdigit() else 0 for k in col_names])!=len(col_names):
-            values = self.convert_and_round(data_row.values[0])
+            else:
+                col_names= []
+        if len(col_names)!=0:
+            if np.sum( [1 if str(k).isdigit() else 0 for k in col_names])!=len(col_names):
+                values = self.convert_and_round(data_row.values[0])
         else:
             values = self.convert_and_round(data_row)
 
