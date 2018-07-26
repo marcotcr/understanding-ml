@@ -318,7 +318,7 @@ class LimeTabularExplainer(object):
             feature_names = [str(x) for x in range(data_row.shape[0])]
         # get column names if numpy.ndarray or pandas df:
         try:
-            col_names= list(data_row.columns)
+            col_names = list(data_row.columns)
         except AttributeError:
             if data_row.dtype.names is not None:
                 col_names = list(data_row.dtype.names)
