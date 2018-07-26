@@ -321,7 +321,8 @@ class LimeTabularExplainer(object):
         try:
             col_names= list(data_row.columns)
         except AttributeError:
-            col_names=list(data_row.dtype.names)
+            if data_row is not None:
+                col_names=list(data_row.dtype.names)
 
 
         if np.sum( [1 if str(k).isdigit() else 0 for k in col_names])!=len(col_names):
