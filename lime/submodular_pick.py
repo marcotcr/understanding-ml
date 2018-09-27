@@ -57,7 +57,8 @@ class SubmodularPick(object):
                 all_indices = np.arange(len(data))
                 np.random.shuffle(all_indices)
                 sample_indices = all_indices[:sample_size]
-            elif method == 'full':
+            # elif method == 'full':
+            else:
                 sample_indices = np.arange(len(data))
 
             # Generate Explanations
