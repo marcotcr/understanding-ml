@@ -21,8 +21,8 @@ class Explanation {
     let colors=['#5F9EA0', this.colors_i(label)];
     let names = [`NOT ${this.names[label]}`, this.names[label]];
     if (this.names.length == 2) {
-      colors=[this.colors_i(0), this.colors_i(1)];
-      names = this.names;
+      colors = [this.colors_i(1-label), this.colors_i(label)];
+      names = [this.names[1-label], this.names[label]];
     }
     let plot = new Barchart(svg, exp, true, names, colors, true, 10);
     svg.style('height', plot.svg_height);
@@ -33,7 +33,7 @@ class Explanation {
     //let colors=['#5F9EA0', this.colors(this.exp['class'])];
     let colors=['#5F9EA0', this.colors_i(label)];
     if (this.names.length == 2) {
-      colors=[this.colors_i(0), this.colors_i(1)];
+      colors=[this.colors_i(1-label), this.colors_i(label)];
     }
     let word_lists = [[], []];
     let max_weight = -1;
@@ -56,7 +56,7 @@ class Explanation {
     div.classed('lime', true).classed('table_div', true);
     let colors=['#5F9EA0', this.colors_i(label)];
     if (this.names.length == 2) {
-      colors=[this.colors_i(0), this.colors_i(1)];
+      colors=[this.colors_i(1-label), this.colors_i(label)];
     }
     const table = div.append('table');
     const thead = table.append('tr');
