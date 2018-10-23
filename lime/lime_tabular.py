@@ -271,7 +271,10 @@ class LimeTabularExplainer(object):
             explanations.
         """
         data, inverse = self.__data_inverse(data_row, num_samples)
-        scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
+        if self.sample_around_instance:
+            scaled_data = (data - data_row) / self.scaler.scale_
+        else:
+            scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
 
         distances = sklearn.metrics.pairwise_distances(
                 scaled_data,
