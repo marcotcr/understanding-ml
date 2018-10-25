@@ -273,13 +273,19 @@ class LimeTabularExplainer(object):
         data, inverse = self.__data_inverse(data_row, num_samples)
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
 
+        yss = predict_fn(inverse)
+        
+        # Sometimes the syhtnetic datapoints yield NaN probabilities, remove them!
+        # also, postpone the computation of distances until the invalid points are removed.
+        nan_mask = np.any(np.isnan(yss), axis=1)
+        yss = yss[~nan_mask]
+        scaled_data = scaled_data[~nan_mask]
+
         distances = sklearn.metrics.pairwise_distances(
                 scaled_data,
                 scaled_data[0].reshape(1, -1),
                 metric=distance_metric
         ).ravel()
-
-        yss = predict_fn(inverse)
 
         # for classification, the model needs to provide a list of tuples - classes
         # along with prediction probabilities
