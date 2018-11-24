@@ -1,0 +1,11 @@
+jupyter setup:
+curl -O https://repo.anaconda.com/archive/Anaconda3-5.3.0-Linux-x86_64.sh
+bash Anaconda3-5.3.0-Linux-x86_64.sh
+jupyter notebook --generate-config
+jupyter notebook password
+vim ~/.jupyter/jupyter_notebook_config.py
+
+jupyter kernel:
+conda create -n ipykernel_py3 python=3.5.6 ipykernel
+conda activate ipykernel_py3
+python -m ipykernel install --user --name ipykernel_py3 --display-name "Python (ipykernel_py3)"
