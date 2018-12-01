@@ -63,6 +63,11 @@ class SubmodularPick(object):
             # Generate Explanations
             self.explanations = []
             for i in sample_indices:
+                #check for empty row 
+                if isinstance(data[i],str) and not data[i].strip():
+                    continue
+                elif isinstance(data[i],np.ndarray) and not data[i].tostring().strip():
+                    continue
                 self.explanations.append(
                     explainer.explain_instance(
                         data[i], predict_fn, num_features=num_features,
