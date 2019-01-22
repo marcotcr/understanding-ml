@@ -24,7 +24,7 @@ class TableDomainMapper(explanation.DomainMapper):
     """Maps feature ids to names, generates table views, etc"""
 
     def __init__(self, feature_names, feature_values, scaled_row,
-                 categorical_features, discretized_feature_names=None):
+                 categorical_features, discretized_feature_names=None, outer_scaler=None):
         """Init.
 
         Args:
@@ -40,6 +40,7 @@ class TableDomainMapper(explanation.DomainMapper):
         self.scaled_row = scaled_row
         self.all_categorical = len(categorical_features) == len(scaled_row)
         self.categorical_features = categorical_features
+        self.outer_scaler = outer_scaler
 
     def map_exp_ids(self, exp):
         """Maps ids to feature names.
@@ -77,8 +78,14 @@ class TableDomainMapper(explanation.DomainMapper):
         weights = [0] * len(self.feature_names)
         for x in exp:
             weights[x[0]] = x[1]
+        # ADD: inverse transform output value back to the natural value
+        outer_scaler = self.outer_scaler
+        outer_value = self.feature_values
+        if outer_scaler is not None:
+            outer_list = list(map(float, self.feature_values[0:6]))
+            outer_value[0:6] = outer_scaler.inverse_transform(outer_list).round()
         out_list = list(zip(self.exp_feature_names,
-                            self.feature_values,
+                            outer_value,
                             weights))
         if not show_all:
             out_list = [out_list[x[0]] for x in exp]
@@ -112,7 +119,8 @@ class LimeTabularExplainer(object):
                  discretize_continuous=True,
                  discretizer='quartile',
                  sample_around_instance=False,
-                 random_state=None):
+                 random_state=None,
+                 outer_scaler=None):
         """Init function.
 
         Args:
@@ -158,7 +166,7 @@ class LimeTabularExplainer(object):
         self.mode = mode
         self.categorical_names = categorical_names or {}
         self.sample_around_instance = sample_around_instance
-
+        self.outer_scaler = outer_scaler
         if categorical_features is None:
             categorical_features = []
         if feature_names is None:
@@ -172,15 +180,15 @@ class LimeTabularExplainer(object):
             if discretizer == 'quartile':
                 self.discretizer = QuartileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif discretizer == 'decile':
                 self.discretizer = DecileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif discretizer == 'entropy':
                 self.discretizer = EntropyDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels, scaler=self.outer_scaler)
             elif isinstance(discretizer, BaseDiscretizer):
                 self.discretizer = discretizer
             else:
@@ -270,9 +278,9 @@ class LimeTabularExplainer(object):
             An Explanation object (see explanation.py) with the corresponding
             explanations.
         """
+        outer_scaler = self.outer_scaler
         data, inverse = self.__data_inverse(data_row, num_samples)
         scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
-
         distances = sklearn.metrics.pairwise_distances(
                 scaled_data,
                 scaled_data[0].reshape(1, -1),
@@ -350,7 +358,8 @@ class LimeTabularExplainer(object):
                                           values,
                                           scaled_data[0],
                                           categorical_features=categorical_features,
-                                          discretized_feature_names=discretized_feature_names)
+                                          discretized_feature_names=discretized_feature_names,
+                                          outer_scaler=outer_scaler)
         ret_exp = explanation.Explanation(domain_mapper,
                                           mode=self.mode,
                                           class_names=self.class_names)
@@ -378,7 +387,6 @@ class LimeTabularExplainer(object):
                     num_features,
                     model_regressor=model_regressor,
                     feature_selection=self.feature_selection)
-
         if self.mode == "regression":
             ret_exp.intercept[1] = ret_exp.intercept[0]
             ret_exp.local_exp[1] = [x for x in ret_exp.local_exp[0]]
