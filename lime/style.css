@@ -16,14 +16,14 @@
 }
 
 .lime.text_div {
-  max-height:300px;
+  max-height: 300px;
   flex: 1 0 300px;
-  overflow:scroll;
+  overflow: scroll;
 }
 .lime.table_div {
-  max-height:300px;
+  max-height: 300px;
   flex: 1 0 300px;
-  overflow:scroll;
+  overflow: scroll;
 }
 .lime.table_div table {
   border-collapse: collapse;
