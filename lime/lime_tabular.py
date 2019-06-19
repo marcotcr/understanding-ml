@@ -171,86 +171,136 @@ class LimeTabularExplainer(object):
         if self.training_data_stats:
             self.validate_training_data_stats(self.training_data_stats)
 
-        if categorical_features is None:
-            categorical_features = []
-        if feature_names is None:
-            feature_names = [str(i) for i in range(training_data.shape[1])]
+        self._set_feature_names(feature_names, training_data)
 
-        self.categorical_features = list(categorical_features)
-        self.feature_names = list(feature_names)
+        self._set_categorical(categorical_features)
 
-        self.discretizer = None
-        if discretize_continuous:
-            # Set the discretizer if training data stats are provided
-            if self.training_data_stats:
-                discretizer = StatsDiscretizer(training_data, self.categorical_features,
-                                               self.feature_names, labels=training_labels,
-                                               data_stats=self.training_data_stats)
+        n = training_data.shape[1]
 
-            if discretizer == 'quartile':
-                self.discretizer = QuartileDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
-            elif discretizer == 'decile':
-                self.discretizer = DecileDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
-            elif discretizer == 'entropy':
-                self.discretizer = EntropyDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
-            elif isinstance(discretizer, BaseDiscretizer):
-                self.discretizer = discretizer
-            else:
-                raise ValueError('''Discretizer must be 'quartile',''' +
-                                 ''' 'decile', 'entropy' or a''' +
-                                 ''' BaseDiscretizer instance''')
-            self.categorical_features = list(range(training_data.shape[1]))
-
-            # Get the discretized_training_data when the stats are not provided
-            if(self.training_data_stats is None):
-                discretized_training_data = self.discretizer.discretize(
-                    training_data)
-
-        if kernel_width is None:
-            kernel_width = np.sqrt(training_data.shape[1]) * .75
-        kernel_width = float(kernel_width)
-
-        if kernel is None:
-            def kernel(d, kernel_width):
-                return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
-
-        kernel_fn = partial(kernel, kernel_width=kernel_width)
-
-        self.feature_selection = feature_selection
-        self.base = lime_base.LimeBase(kernel_fn, verbose, random_state=self.random_state)
-        self.class_names = class_names
-
-        # Though set has no role to play if training data stats are provided
         self.scaler = None
         self.scaler = sklearn.preprocessing.StandardScaler(with_mean=False)
         self.scaler.fit(training_data)
         self.feature_values = {}
         self.feature_frequencies = {}
 
-        for feature in self.categorical_features:
-            if training_data_stats is None:
-                if self.discretizer is not None:
-                    column = discretized_training_data[:, feature]
-                else:
-                    column = training_data[:, feature]
+        if training_data_stats is None:
+            if discretize_continuous:
+                self._set_discretizer(discretizer, training_data, training_labels)
+                # modify categorical_features
+                self.categorical_features = list(range(n))
 
-                feature_count = collections.Counter(column)
-                values, frequencies = map(list, zip(*(sorted(feature_count.items()))))
+                discretized_training_data = self.discretizer.discretize(
+                    training_data)
+
+                for feature in self.categorical_features:
+                    data = discretized_training_data
+                    frequencies, values = self._cal_stats(data, feature)
+                    self._set_feature_stats(feature, frequencies, values)
             else:
+                for feature in self.categorical_features:
+                    data = training_data
+                    frequencies, values = self._cal_stats(data, feature)
+                    self._set_feature_stats(feature, frequencies, values)
+        else:
+            if discretize_continuous:
+                self._set_discretizer(discretizer, training_data, training_labels)
+                # modify categorical_features
+                self.categorical_features = list(range(n))
+
+            for feature in self.categorical_features:
                 values = training_data_stats["feature_values"][feature]
                 frequencies = training_data_stats["feature_frequencies"][feature]
+                self._set_feature_stats(feature, frequencies, values)
 
-            self.feature_values[feature] = values
-            self.feature_frequencies[feature] = (np.array(frequencies) /
-                                                 float(sum(frequencies)))
-            self.scaler.mean_[feature] = 0
-            self.scaler.scale_[feature] = 1
+        kernel_fn = self._get_kernel_fn(kernel, kernel_width, n)
+
+        self.feature_selection = feature_selection
+        self.base = lime_base.LimeBase(kernel_fn, verbose, random_state=self.random_state)
+        self.class_names = class_names
+
+
+
+
+        #
+        # if training_data_stats is None:
+        #     if self.discretizer is not None:
+        #         for feature in self.categorical_features:
+        #             data = discretized_training_data
+        #             frequencies, values = self._cal_stats(data, feature)
+        #
+        #             self._set_feature_stats(feature, frequencies, values)
+        #
+        #     else:
+        #         for feature in self.categorical_features:
+        #             data = discretized_training_data
+        #             frequencies, values = self._cal_stats(data, feature)
+        #
+        #             self._set_feature_stats(feature, frequencies, values)
+        #
+        #
+        # else:
+        #     for feature in self.categorical_features:
+        #         values = training_data_stats["feature_values"][feature]
+        #         frequencies = training_data_stats["feature_frequencies"][feature]
+        #
+        #         self._set_feature_stats(feature, frequencies, values)
+
+    def _get_kernel_fn(self, kernel, kernel_width, n):
+        if kernel_width is None:
+            kernel_width = np.sqrt(n) * .75
+        kernel_width = float(kernel_width)
+        if kernel is None:
+            def kernel(d, kernel_width):
+                return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
+        kernel_fn = partial(kernel, kernel_width=kernel_width)
+        return kernel_fn
+
+    def _cal_stats(self, data, feature):
+        column = data[:, feature]
+        feature_count = collections.Counter(column)
+        values, frequencies = map(list, zip(*(sorted(feature_count.items()))))
+        return frequencies, values
+
+    def _set_feature_stats(self, feature, frequencies, values):
+        self.feature_values[feature] = values
+        self.feature_frequencies[feature] = (np.array(frequencies) /
+                                             float(sum(frequencies)))
+        self.scaler.mean_[feature] = 0
+        self.scaler.scale_[feature] = 1
+
+    def _set_discretizer(self, discretizer, training_data, training_labels):
+        if self.training_data_stats:
+            discretizer = StatsDiscretizer(training_data, self.categorical_features,
+                                           self.feature_names, labels=training_labels,
+                                           data_stats=self.training_data_stats)
+        if discretizer == 'quartile':
+            self.discretizer = QuartileDiscretizer(
+                training_data, self.categorical_features,
+                self.feature_names, labels=training_labels)
+        elif discretizer == 'decile':
+            self.discretizer = DecileDiscretizer(
+                training_data, self.categorical_features,
+                self.feature_names, labels=training_labels)
+        elif discretizer == 'entropy':
+            self.discretizer = EntropyDiscretizer(
+                training_data, self.categorical_features,
+                self.feature_names, labels=training_labels)
+        elif isinstance(discretizer, BaseDiscretizer):
+            self.discretizer = discretizer
+        else:
+            raise ValueError('''Discretizer must be 'quartile',''' +
+                             ''' 'decile', 'entropy' or a''' +
+                             ''' BaseDiscretizer instance''')
+
+    def _set_feature_names(self, feature_names, training_data):
+        if feature_names is None:
+            feature_names = [str(i) for i in range(training_data.shape[1])]
+        self.feature_names = list(feature_names)
+
+    def _set_categorical(self, categorical_features):
+        if categorical_features is None:
+            categorical_features = []
+        self.categorical_features = list(categorical_features)
 
     @staticmethod
     def convert_and_round(values):
