@@ -196,11 +196,13 @@ class LimeTabularExplainer(object):
                     data = discretized_training_data
                     frequencies, values = self._cal_stats(data, feature)
                     self._set_feature_stats(feature, frequencies, values)
+                    self._set_scaler(feature)
             else:
                 for feature in self.categorical_features:
                     data = training_data
                     frequencies, values = self._cal_stats(data, feature)
                     self._set_feature_stats(feature, frequencies, values)
+                    self._set_scaler(feature)
         else:
             if discretize_continuous:
                 self._set_discretizer(discretizer, training_data, training_labels)
@@ -211,39 +213,13 @@ class LimeTabularExplainer(object):
                 values = training_data_stats["feature_values"][feature]
                 frequencies = training_data_stats["feature_frequencies"][feature]
                 self._set_feature_stats(feature, frequencies, values)
+                self._set_scaler(feature)
 
         kernel_fn = self._get_kernel_fn(kernel, kernel_width, n)
 
         self.feature_selection = feature_selection
         self.base = lime_base.LimeBase(kernel_fn, verbose, random_state=self.random_state)
         self.class_names = class_names
-
-
-
-
-        #
-        # if training_data_stats is None:
-        #     if self.discretizer is not None:
-        #         for feature in self.categorical_features:
-        #             data = discretized_training_data
-        #             frequencies, values = self._cal_stats(data, feature)
-        #
-        #             self._set_feature_stats(feature, frequencies, values)
-        #
-        #     else:
-        #         for feature in self.categorical_features:
-        #             data = discretized_training_data
-        #             frequencies, values = self._cal_stats(data, feature)
-        #
-        #             self._set_feature_stats(feature, frequencies, values)
-        #
-        #
-        # else:
-        #     for feature in self.categorical_features:
-        #         values = training_data_stats["feature_values"][feature]
-        #         frequencies = training_data_stats["feature_frequencies"][feature]
-        #
-        #         self._set_feature_stats(feature, frequencies, values)
 
     def _get_kernel_fn(self, kernel, kernel_width, n):
         if kernel_width is None:
@@ -265,6 +241,8 @@ class LimeTabularExplainer(object):
         self.feature_values[feature] = values
         self.feature_frequencies[feature] = (np.array(frequencies) /
                                              float(sum(frequencies)))
+
+    def _set_scaler(self,feature):
         self.scaler.mean_[feature] = 0
         self.scaler.scale_[feature] = 1
 
@@ -512,6 +490,7 @@ class LimeTabularExplainer(object):
             first_row = data_row
         else:
             first_row = self.discretizer.discretize(data_row)
+
         data[0] = data_row.copy()
         inverse = data.copy()
         for column in categorical_features:
