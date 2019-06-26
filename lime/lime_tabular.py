@@ -3,19 +3,19 @@ Functions for explaining classifiers that use tabular data (matrices).
 """
 import collections
 import copy
-from functools import partial
 import json
 import warnings
+from functools import partial
 
 import numpy as np
 import sklearn
 import sklearn.preprocessing
 from sklearn.utils import check_random_state
 
-from lime.discretize import QuartileDiscretizer
+from lime.discretize import BaseDiscretizer
 from lime.discretize import DecileDiscretizer
 from lime.discretize import EntropyDiscretizer
-from lime.discretize import BaseDiscretizer
+from lime.discretize import QuartileDiscretizer
 from lime.discretize import StatsDiscretizer
 from . import explanation
 from . import lime_base
@@ -409,8 +409,9 @@ class LimeTabularExplainer(object):
             discretized_instance = self.discretizer.discretize(data_row)
             discretized_feature_names = copy.deepcopy(feature_names)
             for f in self.discretizer.names:
+                # NaN is -1, add 1 to convert into index for names
                 discretized_feature_names[f] = self.discretizer.names[f][int(
-                        discretized_instance[f])]
+                    discretized_instance[f]) + 1]
 
         domain_mapper = TableDomainMapper(feature_names,
                                           values,
