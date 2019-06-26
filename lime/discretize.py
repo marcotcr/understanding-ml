@@ -1,11 +1,12 @@
 """
 Discretizers classes, to be used in lime_tabular
 """
+from abc import ABCMeta, abstractmethod
+
 import numpy as np
 import sklearn
 import sklearn.tree
 from sklearn.utils import check_random_state
-from abc import ABCMeta, abstractmethod
 
 
 class BaseDiscretizer():
@@ -108,7 +109,6 @@ class BaseDiscretizer():
 
 
     @abstractmethod
-    # todo: bins support nan
     def bins_one(self, data, labels):
         """
         To be overridden
@@ -117,7 +117,6 @@ class BaseDiscretizer():
         """
         raise NotImplementedError("Must override bins() method")
 
-    # todo: bins support nan
     def discretize(self, data):
         """Discretizes the data.
         Args:
@@ -147,12 +146,14 @@ class BaseDiscretizer():
                 if q == -1:
                     result = np.NAN
                 else:
-                    result = max(
-                        mins[q],
-                        min(
-                            self.random_state.normal(means[q], stds[q]), maxs[q]
-                        )
+                    min_value = min(
+                        self.random_state.normal(means[q], stds[q]), maxs[q]
                     )
+
+                    if np.isnan(mins[q]):
+                        return min_value
+                    else:
+                        return max(mins[q], min_value)
 
                 return result
 

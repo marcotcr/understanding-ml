@@ -451,7 +451,44 @@ class LimeTabularExplainer(object):
             ret_exp.local_exp[1] = [x for x in ret_exp.local_exp[0]]
             ret_exp.local_exp[0] = [(i, -1 * j) for i, j in ret_exp.local_exp[1]]
 
+        # store important intermediate data for later inspection
+        ret_exp.info = {
+            'data_row': data_row,
+            'inverse': inverse,
+            'data': data,
+            'yys': yss,
+            'distances': distances
+        }
+
         return ret_exp
+
+    # return stats info for discretized result
+    def get_frequency_info(self):
+        '''row contains (feature_name, )'''
+        data = []
+        for i, feature_name in enumerate(self.feature_names):
+            if i in self.discretizer.to_discretize:
+                for value, frequency, categorical_name, mean, std in zip(self.feature_values[i],
+                                                                         self.feature_frequencies[i],
+                                                                         self.discretizer.names[i],
+                                                                         self.discretizer.means[i],
+                                                                         self.discretizer.stds[i]):
+                    record = (
+                        feature_name,
+                        frequency,
+                        categorical_name,
+                        value,
+                        mean,
+                        std
+                    )
+                    data.append(record)
+
+        item_names = ['feature_name', 'frequency', 'categorical_name', 'value', 'mean', 'std']
+
+        return data, item_names
+
+    def get_explainer_info(self):
+        return self.explainer_info
 
     def __data_inverse(self,
                        data_row,
