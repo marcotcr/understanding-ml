@@ -1,11 +1,12 @@
 """
 Discretizers classes, to be used in lime_tabular
 """
+from abc import ABCMeta, abstractmethod
+
 import numpy as np
 import sklearn
 import sklearn.tree
 from sklearn.utils import check_random_state
-from abc import ABCMeta, abstractmethod
 
 
 class BaseDiscretizer():
@@ -58,37 +59,57 @@ class BaseDiscretizer():
             self.maxs = self.data_stats.get("maxs")
 
         for feature, qts in zip(self.to_discretize, bins):
-            n_bins = qts.shape[0]  # Actually number of borders (= #bins-1)
-            boundaries = np.min(data[:, feature]), np.max(data[:, feature])
-            name = feature_names[feature]
+            self._update_categorical_names(feature, feature_names, qts)
 
-            self.names[feature] = ['%s <= %.2f' % (name, qts[0])]
-            for i in range(n_bins - 1):
-                self.names[feature].append('%.2f < %s <= %.2f' %
-                                           (qts[i], name, qts[i + 1]))
-            self.names[feature].append('%s > %.2f' % (name, qts[n_bins - 1]))
+            def get_index(qts, x):
+                result = np.searchsorted(qts, x)
+                result = np.where(np.isnan(x), -1, result)
 
-            self.lambdas[feature] = lambda x, qts=qts: np.searchsorted(qts, x)
-            discretized = self.lambdas[feature](data[:, feature])
+                return result
 
+            self.lambdas[feature] = lambda x, qts=qts: get_index(qts, x)
             # If data stats are provided no need to compute the below set of details
             if data_stats:
                 continue
 
-            self.means[feature] = []
-            self.stds[feature] = []
-            for x in range(n_bins + 1):
-                selection = data[discretized == x, feature]
-                mean = 0 if len(selection) == 0 else np.mean(selection)
-                self.means[feature].append(mean)
-                std = 0 if len(selection) == 0 else np.std(selection)
-                std += 0.00000000001
-                self.stds[feature].append(std)
-            self.mins[feature] = [boundaries[0]] + qts.tolist()
-            self.maxs[feature] = qts.tolist() + [boundaries[1]]
+            self._update_feature_dist(data, feature, qts)
+
+            self._set_feature_boundaries(data, feature, qts)
+
+    def _set_feature_boundaries(self, data, feature, qts):
+        boundaries = np.min(data[:, feature]), np.max(data[:, feature])
+        self.mins[feature] = [boundaries[0]] + qts.tolist()
+        self.maxs[feature] = qts.tolist() + [boundaries[1]]
+
+    def _update_feature_dist(self, data, feature, qts):
+        discretized = self.lambdas[feature](data[:, feature])
+        self.means[feature] = []
+        self.stds[feature] = []
+        n_bins = qts.shape[0]
+        for x in range(-1, n_bins + 1): # -1 corespond for nan
+            selection = data[discretized == x, feature]
+
+            mean = 0 if len(selection) == 0 or (x == -1) else np.mean(selection)
+            self.means[feature].append(mean)
+
+            std = 0 if len(selection) == 0 or (x == -1) else np.std(selection)
+            std += 0.00000000001
+
+            self.stds[feature].append(std)
+
+    def _update_categorical_names(self, feature, feature_names, qts):
+        # add nan as one category name
+        name = feature_names[feature]
+        n_bins = qts.shape[0]  # Actually number of borders (= #bins-1)
+        self.names[feature] = ['{} is NaN'.format(name), '%s <= %.2f' % (name, qts[0])]
+        for i in range(n_bins - 1):
+            self.names[feature].append('%.2f < %s <= %.2f' %
+                                       (qts[i], name, qts[i + 1]))
+        self.names[feature].append('%s > %.2f' % (name, qts[n_bins - 1]))
+
 
     @abstractmethod
-    def bins(self, data, labels):
+    def bins_one(self, data, labels):
         """
         To be overridden
         Returns for each feature to discretize the boundaries
@@ -121,8 +142,21 @@ class BaseDiscretizer():
             stds = self.stds[feature]
 
             def get_inverse(q):
-                return max(mins[q],
-                           min(self.random_state.normal(means[q], stds[q]), maxs[q]))
+                # return random from normal distribution, bounded by min, max
+                if q == -1:
+                    result = np.NAN
+                else:
+                    min_value = min(
+                        self.random_state.normal(means[q], stds[q]), maxs[q]
+                    )
+
+                    if np.isnan(mins[q]):
+                        return min_value
+                    else:
+                        return max(mins[q], min_value)
+
+                return result
+
             if len(data.shape) == 1:
                 q = int(ret[feature])
                 ret[feature] = get_inverse(q)
@@ -130,6 +164,26 @@ class BaseDiscretizer():
                 ret[:, feature] = (
                     [get_inverse(int(x)) for x in ret[:, feature]])
         return ret
+
+    def bins(self, data, labels):
+        bins = []
+        for feature in self.to_discretize:
+            feature_data = data[:, feature]
+            selection = ~np.isnan(feature_data)
+            not_null_data = feature_data[selection]
+
+            if labels is not None:
+                if len(labels) == len(selection):
+                    label_at_not_null = labels[selection]
+                else:
+                    label_at_not_null = labels
+
+                qts = self.bins_one(not_null_data, label_at_not_null)
+            else:
+                qts = self.bins_one(not_null_data, None)
+            bins.append(qts)
+
+        return bins
 
 
 class StatsDiscretizer(BaseDiscretizer):
@@ -164,12 +218,10 @@ class QuartileDiscretizer(BaseDiscretizer):
                                  feature_names, labels=labels,
                                  random_state=random_state)
 
-    def bins(self, data, labels):
-        bins = []
-        for feature in self.to_discretize:
-            qts = np.array(np.percentile(data[:, feature], [25, 50, 75]))
-            bins.append(qts)
-        return bins
+    def bins_one(self, feature, label):
+        qts = np.array(np.percentile(feature, [25, 50, 75]))
+
+        return qts
 
 
 class DecileDiscretizer(BaseDiscretizer):
