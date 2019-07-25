@@ -17,5 +17,12 @@ setup(name='lime',
           'scikit-image>=0.12;python_version>="3.0"',
           'scikit-image<0.15;python_version<"3.0"'
       ],
+      classifiers=[
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+      ],
       include_package_data=True,
       zip_safe=False)
