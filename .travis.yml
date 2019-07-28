@@ -14,3 +14,7 @@ install:
 script:
   - pytest --cov=./ lime
   - flake8 lime
+  
+# Push the results back to codecov  
+after_success:
+  - codecov  
