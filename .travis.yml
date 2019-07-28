@@ -10,6 +10,7 @@ install:
   - python -m pip install -U pip
   - python -m pip install -e .
   - python -m pip install flake8 pytest
+  - python -m pip install codecov
 # command to run tests
 script:
   - pytest lime
