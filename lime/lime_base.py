@@ -68,11 +68,16 @@ class LimeBase(object):
             used_features.append(best)
         return np.array(used_features)
 
-    def feature_selection(self, data, labels, weights, num_features, method):
+    def feature_selection(self, data, labels, weights, num_features, method, feature_names=None, use_feature_names=None):
         """Selects features for the model. see explain_instance_with_data to
            understand the parameters."""
         if method == 'none':
             return np.array(range(data.shape[1]))
+        if method == 'fixed':
+            used_features = []
+            for f in use_feature_names:
+                used_features.append(feature_names.index(f))
+            return used_features
         elif method == 'forward_selection':
             return self.forward_selection(data, labels, weights, num_features)
         elif method == 'highest_weights':
@@ -142,6 +147,8 @@ class LimeBase(object):
                                    label,
                                    num_features,
                                    feature_selection='auto',
+                                   feature_names=None,
+                                   use_feature_names=None,
                                    model_regressor=None):
         """Takes perturbed data, labels and distances, returns explanation.
 
@@ -164,10 +171,12 @@ class LimeBase(object):
                 'none': uses all features, ignores num_features
                 'auto': uses forward_selection if num_features <= 6, and
                     'highest_weights' otherwise.
+                'fixed': uses fixed features which passed by 'use_features'.
             model_regressor: sklearn regressor to use in explanation.
                 Defaults to Ridge regression if None. Must have
                 model_regressor.coef_ and 'sample_weight' as a parameter
                 to model_regressor.fit()
+            exclude_features: exclude features when select features.
 
         Returns:
             (intercept, exp, score, local_pred):
@@ -185,7 +194,9 @@ class LimeBase(object):
                                                labels_column,
                                                weights,
                                                num_features,
-                                               feature_selection)
+                                               feature_selection,
+                                               feature_names,
+                                               use_feature_names)
         if model_regressor is None:
             model_regressor = Ridge(alpha=1, fit_intercept=True,
                                     random_state=self.random_state)
