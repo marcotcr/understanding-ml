@@ -71,13 +71,14 @@ class LimeBase(object):
     def feature_selection(self, data, labels, weights, num_features, method, feature_names=None, use_feature_names=None):
         """Selects features for the model. see explain_instance_with_data to
            understand the parameters."""
+        if use_feature_names is not None:
+            use_feature_index = []
+            for f in use_feature_names:
+                use_feature_index.append(feature_names.index(f))
+            data = data[:, use_feature_index]
+
         if method == 'none':
             return np.array(range(data.shape[1]))
-        if method == 'fixed':
-            used_features = []
-            for f in use_feature_names:
-                used_features.append(feature_names.index(f))
-            return used_features
         elif method == 'forward_selection':
             return self.forward_selection(data, labels, weights, num_features)
         elif method == 'highest_weights':
@@ -171,12 +172,11 @@ class LimeBase(object):
                 'none': uses all features, ignores num_features
                 'auto': uses forward_selection if num_features <= 6, and
                     'highest_weights' otherwise.
-                'fixed': uses fixed features which passed by 'use_features'.
             model_regressor: sklearn regressor to use in explanation.
                 Defaults to Ridge regression if None. Must have
                 model_regressor.coef_ and 'sample_weight' as a parameter
                 to model_regressor.fit()
-            exclude_features: exclude features when select features.
+            use_feature_names: use features when select features.
 
         Returns:
             (intercept, exp, score, local_pred):
