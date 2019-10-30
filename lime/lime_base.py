@@ -68,7 +68,14 @@ class LimeBase(object):
             used_features.append(best)
         return np.array(used_features)
 
-    def feature_selection(self, datas, labels, weights, num_features, method, feature_names=None, use_feature_names=None):
+    def feature_selection(self,
+                          datas,
+                          labels,
+                          weights,
+                          num_features,
+                          method,
+                          feature_names=None,
+                          use_feature_names=None):
         """Selects features for the model. see explain_instance_with_data to
            understand the parameters."""
         feature_index = np.array(range(datas.shape[1]))
