@@ -78,6 +78,8 @@ class LimeBase(object):
                 use_feature_index.append(feature_names.index(f))
             data = datas[:, use_feature_index]
             feature_index = feature_index[use_feature_index]
+        else:
+            data = datas
 
         if method == 'none':
             return feature_index[list(range(data.shape[1]))]
