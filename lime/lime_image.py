@@ -29,7 +29,11 @@ class ImageExplanation(object):
         self.local_exp = {}
         self.local_pred = None
 
-    def get_image_and_mask(self, label, positive_only=True, negative_only=False, hide_rest=False,
+        # added for faithfulness metric
+        self.faithfulness_metric = {}
+
+    def get_image_and_mask(self, label, positive_only=True,
+                           negative_only=False, hide_rest=False,
                            num_features=5, min_weight=0.):
         """Init function.
 
@@ -54,7 +58,8 @@ class ImageExplanation(object):
         if label not in self.local_exp:
             raise KeyError('Label not in explanation')
         if positive_only & negative_only:
-            raise ValueError("Positive_only and negative_only cannot be true at the same time.")
+            raise ValueError(
+                "Positive_only and negative_only cannot be true at the same time.")
         segments = self.segments
         image = self.image
         exp = self.local_exp[label]
@@ -123,7 +128,8 @@ class LimeImageExplainer(object):
 
         self.random_state = check_random_state(random_state)
         self.feature_selection = feature_selection
-        self.base = lime_base.LimeBase(kernel_fn, verbose, random_state=self.random_state)
+        self.base = lime_base.LimeBase(kernel_fn, verbose,
+                                       random_state=self.random_state)
 
     def explain_instance(self, image, classifier_fn, labels=(1,),
                          hide_color=None,
@@ -174,7 +180,8 @@ class LimeImageExplainer(object):
             random_seed = self.random_state.randint(0, high=1000)
 
         if segmentation_fn is None:
-            segmentation_fn = SegmentationAlgorithm('quickshift', kernel_size=4,
+            segmentation_fn = SegmentationAlgorithm('quickshift',
+                                                    kernel_size=4,
                                                     max_dist=200, ratio=0.2,
                                                     random_seed=random_seed)
         try:
@@ -212,11 +219,81 @@ class LimeImageExplainer(object):
         for label in top:
             (ret_exp.intercept[label],
              ret_exp.local_exp[label],
-             ret_exp.score, ret_exp.local_pred) = self.base.explain_instance_with_data(
+             ret_exp.score,
+             ret_exp.local_pred) = self.base.explain_instance_with_data(
                 data, labels, distances, label, num_features,
                 model_regressor=model_regressor,
                 feature_selection=self.feature_selection)
+            corr_matrix = LimeImageExplainer.faithfulness_metric(
+                prediction_fun=classifier_fn,
+                image=image, label=label,
+                features_coeffs_index=
+                np.array(
+                    ret_exp.local_exp[label]),
+                segments=segments,
+                fudged_image=fudged_image)
+            ret_exp.faithfulness_metric[label] = corr_matrix[0, 1]
+
         return ret_exp
+
+    @staticmethod
+    def faithfulness_metric(prediction_fun, image, label,
+                            features_coeffs_index,
+                            segments, fudged_image):
+        """
+        This metric evaluates the correlation between the importance assigned
+        by the interpretability algorithm to attributes and the effect of each
+        of the attributes on the performance of the predictive model.
+        The higher the importance, the higher should be the effect, and vice
+        versa, The metric evaluates this by incrementally removing each of the
+        attributes deemed important by the interpretability metric, and
+        evaluating the effect on the performance, and then calculating the
+        correlation between the weights (importance) of the attributes and
+        corresponding model performance. [#]_
+
+        Args:
+            prediction_fun : classifier prediction probability function, which
+                takes a numpy array and outputs prediction probabilities.  For
+                ScikitClassifiers , this is classifier.predict_proba.
+            image: 3 dimension RGB image
+            features_coeffs_index: 2D numpy array of features importance and
+             indices in decreasing order
+            label :  int, prediction class of image
+            segments : 2D array of image superpixels
+            fudged_image: 2D numpy array representing default value of each
+                segment (feature)
+
+        Returns:
+         float: correlation between attribute importance weights and
+          corresponding effect on classifier
+
+        References:
+            [#] `David Alvarez Melis and Tommi Jaakkola. Towards robust
+            interpretability with self-explaining neural networks.
+            In S. Bengio, H. Wallach, H. Larochelle, K. Grauman,
+            N. Cesa-Bianchi, and R. Garnett, editors,
+            Advances in Neural Information Processing Systems 31,
+            pages 7775-7784. 2018.
+        """
+        pred_probs = np.zeros(features_coeffs_index.shape[0])
+        features_indices = features_coeffs_index[:, 0].astype(int)
+        features_coeffs = features_coeffs_index[:, 1]
+        for ind in range(features_indices.shape[0]):
+            image_copy = copy.deepcopy(image)
+            mask = np.zeros(segments.shape).astype(bool)
+
+            # mask the ind feature
+            mask[segments == features_indices[ind]] = True
+            image_copy[mask] = fudged_image[mask]
+            image_copy_pred = prediction_fun(np.expand_dims(image_copy, 0))
+            pred_probs[ind] = image_copy_pred[0][label]
+            # unmask the ind feature
+            mask[segments == ind] = False
+
+            # here we multiply by (-1) because we want to return a positive
+            # correlation if the prediction increase while the
+            # coefficient decrease
+        return -np.corrcoef(features_coeffs, pred_probs)
 
     def data_labels(self,
                     image,
@@ -243,7 +320,7 @@ class LimeImageExplainer(object):
                 labels: prediction probabilities matrix
         """
         n_features = np.unique(segments).shape[0]
-        data = self.random_state.randint(0, 2, num_samples * n_features)\
+        data = self.random_state.randint(0, 2, num_samples * n_features) \
             .reshape((num_samples, n_features))
         labels = []
         data[0, :] = 1
