@@ -227,9 +227,7 @@ class LimeImageExplainer(object):
             corr_matrix = LimeImageExplainer.faithfulness_metric(
                 prediction_fun=classifier_fn,
                 image=image, label=label,
-                features_coeffs_index=
-                np.array(
-                    ret_exp.local_exp[label]),
+                features_coeffs_index=np.array(ret_exp.local_exp[label]),
                 segments=segments,
                 fudged_image=fudged_image)
             ret_exp.faithfulness_metric[label] = corr_matrix[0, 1]
