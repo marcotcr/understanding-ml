@@ -385,8 +385,7 @@ class LimeTabularExplainer(object):
                     """)
             else:
                 raise ValueError("Your model outputs "
-                                 "arrays with {} dimensions".format(
-                    len(yss.shape)))
+                                 "arrays with {} dimensions".format(len(yss.shape)))
 
         # for regression, the output should be a one-dimensional array of predictions
         else:
