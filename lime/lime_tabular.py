@@ -577,16 +577,35 @@ class LimeTabularExplainer(object):
                             features_coeffs_index: np.ndarray,
                             label=None) -> float:
         """
+        https://github.com/IBM/AIX360/blob/master/aix360/metrics/local_metrics.py
+        This metric evaluates the correlation between the importance assigned
+        by the interpretability algorithm to attributes and the effect of each
+        of the attributes on the performance of the predictive model.
+        The higher the importance, the higher should be the effect, and vice
+        versa, The metric evaluates this by incrementally removing each of the
+        attributes deemed important by the interpretability metric, and
+        evaluating the effect on the performance, and then calculating the
+        correlation between the weights (importance) of the attributes and
+        corresponding model performance. [#]_
 
         Args:
-            data_row:
-            predict_fn:
-            base:
-            features_coeffs_index:
-            label:
+            data_row: 1d numpy array, corresponding to a row
+            predict_fn: prediction function. For classifiers, this should be a
+                function that takes a numpy array and outputs prediction
+                probabilities. For regressors, this takes a numpy array and
+                returns the predictions. For ScikitClassifiers, this is
+                `classifier.predict_proba()`. For ScikitRegressors, this
+                is `regressor.predict()`. The prediction function needs to work
+                on multiple feature vectors (the vectors randomly perturbed
+                from the data_row).
+            base: 1D numpy array, corresponding to perturbated data_row
+            features_coeffs_index: 2d numpy array corresponding to the features
+                their indices in decreasing order.
+            label: None (in regression) or int (classification)
 
         Returns:
-
+            float: correlation between attribute importance weights and
+                    corresponding effect on classifier
         """
         data_row = data_row.reshape((1, -1))
         base = base.reshape((1, -1))
