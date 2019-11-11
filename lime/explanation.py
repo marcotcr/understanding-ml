@@ -99,6 +99,7 @@ class Explanation(object):
         self.score = None
         self.local_pred = None
         self.scaled_data = None
+        self.faithfulness = {}
         if mode == 'classification':
             self.class_names = class_names
             self.top_labels = None

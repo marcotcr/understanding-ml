@@ -1,6 +1,7 @@
 """
 Functions for explaining classifiers that use tabular data (matrices).
 """
+from typing import Callable
 import collections
 import copy
 from functools import partial
@@ -95,11 +96,12 @@ class TableDomainMapper(explanation.DomainMapper):
                                     fweights))
             else:
                 out_dict = dict(map(lambda x: (x[0], (x[1], x[2], x[3])),
-                                zip(self.feature_indexes,
-                                    fnames,
-                                    self.feature_values,
-                                    fweights)))
-                out_list = [out_dict.get(x[0], (str(x[0]), 0.0, 0.0)) for x in exp]
+                                    zip(self.feature_indexes,
+                                        fnames,
+                                        self.feature_values,
+                                        fweights)))
+                out_list = [out_dict.get(x[0], (str(x[0]), 0.0, 0.0)) for x in
+                            exp]
         else:
             out_list = list(zip(self.exp_feature_names,
                                 self.feature_values,
@@ -108,7 +110,9 @@ class TableDomainMapper(explanation.DomainMapper):
                 out_list = [out_list[x[0]] for x in exp]
         ret = u'''
             %s.show_raw_tabular(%s, %d, %s);
-        ''' % (exp_object_name, json.dumps(out_list, ensure_ascii=False), label, div_name)
+        ''' % (
+            exp_object_name, json.dumps(out_list, ensure_ascii=False), label,
+            div_name)
         return ret
 
 
@@ -206,22 +210,24 @@ class LimeTabularExplainer(object):
         if discretize_continuous and not sp.sparse.issparse(training_data):
             # Set the discretizer if training data stats are provided
             if self.training_data_stats:
-                discretizer = StatsDiscretizer(training_data, self.categorical_features,
-                                               self.feature_names, labels=training_labels,
+                discretizer = StatsDiscretizer(training_data,
+                                               self.categorical_features,
+                                               self.feature_names,
+                                               labels=training_labels,
                                                data_stats=self.training_data_stats)
 
             if discretizer == 'quartile':
                 self.discretizer = QuartileDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                    training_data, self.categorical_features,
+                    self.feature_names, labels=training_labels)
             elif discretizer == 'decile':
                 self.discretizer = DecileDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                    training_data, self.categorical_features,
+                    self.feature_names, labels=training_labels)
             elif discretizer == 'entropy':
                 self.discretizer = EntropyDiscretizer(
-                        training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                    training_data, self.categorical_features,
+                    self.feature_names, labels=training_labels)
             elif isinstance(discretizer, BaseDiscretizer):
                 self.discretizer = discretizer
             else:
@@ -231,7 +237,7 @@ class LimeTabularExplainer(object):
             self.categorical_features = list(range(training_data.shape[1]))
 
             # Get the discretized_training_data when the stats are not provided
-            if(self.training_data_stats is None):
+            if (self.training_data_stats is None):
                 discretized_training_data = self.discretizer.discretize(
                     training_data)
 
@@ -246,7 +252,8 @@ class LimeTabularExplainer(object):
         kernel_fn = partial(kernel, kernel_width=kernel_width)
 
         self.feature_selection = feature_selection
-        self.base = lime_base.LimeBase(kernel_fn, verbose, random_state=self.random_state)
+        self.base = lime_base.LimeBase(kernel_fn, verbose,
+                                       random_state=self.random_state)
         self.class_names = class_names
 
         # Though set has no role to play if training data stats are provided
@@ -263,10 +270,12 @@ class LimeTabularExplainer(object):
                     column = training_data[:, feature]
 
                 feature_count = collections.Counter(column)
-                values, frequencies = map(list, zip(*(sorted(feature_count.items()))))
+                values, frequencies = map(list, zip(
+                    *(sorted(feature_count.items()))))
             else:
                 values = training_data_stats["feature_values"][feature]
-                frequencies = training_data_stats["feature_frequencies"][feature]
+                frequencies = training_data_stats["feature_frequencies"][
+                    feature]
 
             self.feature_values[feature] = values
             self.feature_frequencies[feature] = (np.array(frequencies) /
@@ -284,10 +293,13 @@ class LimeTabularExplainer(object):
             Method to validate the structure of training data stats
         """
         stat_keys = list(training_data_stats.keys())
-        valid_stat_keys = ["means", "mins", "maxs", "stds", "feature_values", "feature_frequencies"]
+        valid_stat_keys = ["means", "mins", "maxs", "stds", "feature_values",
+                           "feature_frequencies"]
         missing_keys = list(set(valid_stat_keys) - set(stat_keys))
         if len(missing_keys) > 0:
-            raise Exception("Missing keys in training_data_stats. Details: %s" % (missing_keys))
+            raise Exception(
+                "Missing keys in training_data_stats. Details: %s" % (
+                    missing_keys))
 
     def explain_instance(self,
                          data_row,
@@ -330,7 +342,8 @@ class LimeTabularExplainer(object):
             An Explanation object (see explanation.py) with the corresponding
             explanations.
         """
-        if sp.sparse.issparse(data_row) and not sp.sparse.isspmatrix_csr(data_row):
+        if sp.sparse.issparse(data_row) and not sp.sparse.isspmatrix_csr(
+                data_row):
             # Preventative code: if sparse, convert to csr format if not in csr format already
             data_row = data_row.tocsr()
         data, inverse = self.__data_inverse(data_row, num_samples)
@@ -343,11 +356,10 @@ class LimeTabularExplainer(object):
         else:
             scaled_data = (data - self.scaler.mean_) / self.scaler.scale_
         distances = sklearn.metrics.pairwise_distances(
-                scaled_data,
-                scaled_data[0].reshape(1, -1),
-                metric=distance_metric
+            scaled_data,
+            scaled_data[0].reshape(1, -1),
+            metric=distance_metric
         ).ravel()
-
         yss = predict_fn(inverse)
 
         # for classification, the model needs to provide a list of tuples - classes
@@ -373,7 +385,8 @@ class LimeTabularExplainer(object):
                     """)
             else:
                 raise ValueError("Your model outputs "
-                                 "arrays with {} dimensions".format(len(yss.shape)))
+                                 "arrays with {} dimensions".format(
+                    len(yss.shape)))
 
         # for regression, the output should be a one-dimensional array of predictions
         else:
@@ -381,7 +394,8 @@ class LimeTabularExplainer(object):
                 assert isinstance(yss, np.ndarray) and len(yss.shape) == 1
             except AssertionError:
                 raise ValueError("Your model needs to output single-dimensional \
-                    numpyarrays, not arrays of {} dimensions".format(yss.shape))
+                    numpyarrays, not arrays of {} dimensions".format(
+                    yss.shape))
 
             predicted_value = yss[0]
             min_y = min(yss)
@@ -418,7 +432,7 @@ class LimeTabularExplainer(object):
             discretized_feature_names = copy.deepcopy(feature_names)
             for f in self.discretizer.names:
                 discretized_feature_names[f] = self.discretizer.names[f][int(
-                        discretized_instance[f])]
+                    discretized_instance[f])]
 
         domain_mapper = TableDomainMapper(feature_names,
                                           values,
@@ -444,19 +458,29 @@ class LimeTabularExplainer(object):
         for label in labels:
             (ret_exp.intercept[label],
              ret_exp.local_exp[label],
-             ret_exp.score, ret_exp.local_pred) = self.base.explain_instance_with_data(
-                    scaled_data,
-                    yss,
-                    distances,
-                    label,
-                    num_features,
-                    model_regressor=model_regressor,
-                    feature_selection=self.feature_selection)
+             ret_exp.score,
+             ret_exp.local_pred) = self.base.explain_instance_with_data(
+                scaled_data,
+                yss,
+                distances,
+                label,
+                num_features,
+                model_regressor=model_regressor,
+                feature_selection=self.feature_selection)
+            metric = LimeTabularExplainer.faithfulness_metric(data_row,
+                                                              predict_fn,
+                                                              inverse[1],
+                                                              np.array(
+                                                                  ret_exp.local_exp[
+                                                                      label]),
+                                                              label=None)
+            ret_exp.faithfulness[label] = metric
 
         if self.mode == "regression":
             ret_exp.intercept[1] = ret_exp.intercept[0]
             ret_exp.local_exp[1] = [x for x in ret_exp.local_exp[0]]
-            ret_exp.local_exp[0] = [(i, -1 * j) for i, j in ret_exp.local_exp[1]]
+            ret_exp.local_exp[0] = [(i, -1 * j) for i, j in
+                                    ret_exp.local_exp[1]]
 
         return ret_exp
 
@@ -487,7 +511,8 @@ class LimeTabularExplainer(object):
         is_sparse = sp.sparse.issparse(data_row)
         if is_sparse:
             num_cols = data_row.shape[1]
-            data = sp.sparse.csr_matrix((num_samples, num_cols), dtype=data_row.dtype)
+            data = sp.sparse.csr_matrix((num_samples, num_cols),
+                                        dtype=data_row.dtype)
         else:
             num_cols = data_row.shape[0]
             data = np.zeros((num_samples, num_cols))
@@ -546,6 +571,45 @@ class LimeTabularExplainer(object):
         inverse[0] = data_row
         return data, inverse
 
+    @staticmethod
+    def faithfulness_metric(data_row: np.ndarray, predict_fn: Callable,
+                            base: np.ndarray,
+                            features_coeffs_index: np.ndarray,
+                            label=None) -> float:
+        """
+
+        Args:
+            data_row:
+            predict_fn:
+            base:
+            features_coeffs_index:
+            label:
+
+        Returns:
+
+        """
+        data_row = data_row.reshape((1, -1))
+        base = base.reshape((1, -1))
+
+        pred_probs = np.zeros(features_coeffs_index.shape[0])
+        features_indices = features_coeffs_index[:, 0].astype(int)
+        features_coeffs = features_coeffs_index[:, 1]
+
+        for ind in range(features_indices.shape[0]):
+
+            data_row_copy = copy.deepcopy(data_row)
+
+            data_row_copy[0, ind] = base[0, ind]
+            data_row_copy_pred = predict_fn(data_row_copy)
+            if label is None:
+                pred_probs[ind] = data_row_copy_pred[0]
+            else:
+                pred_probs[ind] = data_row_copy_pred[0][label]
+        # here we multiply by (-1) because we want to return a positive
+        # correlation if the prediction increase while the
+        # coefficient decrease
+        return -np.corrcoef(features_coeffs, pred_probs)[0, 1]
+
 
 class RecurrentTabularExplainer(LimeTabularExplainer):
     """
@@ -565,7 +629,8 @@ class RecurrentTabularExplainer(LimeTabularExplainer):
     def __init__(self, training_data, mode="classification",
                  training_labels=None, feature_names=None,
                  categorical_features=None, categorical_names=None,
-                 kernel_width=None, kernel=None, verbose=False, class_names=None,
+                 kernel_width=None, kernel=None, verbose=False,
+                 class_names=None,
                  feature_selection='auto', discretize_continuous=True,
                  discretizer='quartile', random_state=None):
         """
@@ -609,7 +674,7 @@ class RecurrentTabularExplainer(LimeTabularExplainer):
         # Reshape X
         n_samples, n_timesteps, n_features = training_data.shape
         training_data = np.transpose(training_data, axes=(0, 2, 1)).reshape(
-                n_samples, n_timesteps * n_features)
+            n_samples, n_timesteps * n_features)
         self.n_timesteps = n_timesteps
         self.n_features = n_features
 
@@ -619,20 +684,20 @@ class RecurrentTabularExplainer(LimeTabularExplainer):
 
         # Send off the the super class to do its magic.
         super(RecurrentTabularExplainer, self).__init__(
-                training_data,
-                mode=mode,
-                training_labels=training_labels,
-                feature_names=feature_names,
-                categorical_features=categorical_features,
-                categorical_names=categorical_names,
-                kernel_width=kernel_width,
-                kernel=kernel,
-                verbose=verbose,
-                class_names=class_names,
-                feature_selection=feature_selection,
-                discretize_continuous=discretize_continuous,
-                discretizer=discretizer,
-                random_state=random_state)
+            training_data,
+            mode=mode,
+            training_labels=training_labels,
+            feature_names=feature_names,
+            categorical_features=categorical_features,
+            categorical_names=categorical_names,
+            kernel_width=kernel_width,
+            kernel=kernel,
+            verbose=verbose,
+            class_names=class_names,
+            feature_selection=feature_selection,
+            discretize_continuous=discretize_continuous,
+            discretizer=discretizer,
+            random_state=random_state)
 
     def _make_predict_proba(self, func):
         """
