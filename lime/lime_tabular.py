@@ -473,7 +473,7 @@ class LimeTabularExplainer(object):
                                                               np.array(
                                                                   ret_exp.local_exp[
                                                                       label]),
-                                                              label=None)
+                                                              label=label)
             ret_exp.faithfulness[label] = metric
 
         if self.mode == "regression":
