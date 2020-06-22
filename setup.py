@@ -1,4 +1,7 @@
 from setuptools import setup, find_packages
+import sys
+python_version = sys.version_info
+pillow_version = 'pillow==7.0.0' if python_version[1] is 8 else 'pillow==5.4.1'
 
 setup(name='lime',
       version='0.2.0.0',
@@ -14,7 +17,7 @@ setup(name='lime',
           'numpy',
           'scipy',
           'tqdm',
-          'pillow==7.0.0',
+          pillow_version,
           'scikit-learn>=0.18',
           'scikit-image>=0.12',
       ],
