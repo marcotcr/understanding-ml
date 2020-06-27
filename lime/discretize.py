@@ -45,9 +45,6 @@ class BaseDiscretizer():
         self.stds = {}
         self.mins = {}
         self.maxs = {}
-        self.precompute_size = 10000
-        self.undiscretize_idxs = {}
-        self.undiscretize_precomputed = {}
         self.random_state = check_random_state(random_state)
 
         # To override when implementing a custom binning
@@ -67,9 +64,6 @@ class BaseDiscretizer():
             name = feature_names[feature]
 
             self.names[feature] = ['%s <= %.2f' % (name, qts[0])]
-            self.undiscretize_idxs[feature] = (
-                [self.precompute_size] * (n_bins + 1))
-            self.undiscretize_precomputed[feature] = [[]] * (n_bins + 1)
             for i in range(n_bins - 1):
                 self.names[feature].append('%.2f < %s <= %.2f' %
                                            (qts[i], name, qts[i + 1]))
@@ -80,8 +74,6 @@ class BaseDiscretizer():
 
             # If data stats are provided no need to compute the below set of details
             if data_stats:
-                [self.get_undiscretize_value(feature, i)
-                 for i in range(n_bins + 1)]
                 continue
 
             self.means[feature] = []
@@ -95,8 +87,6 @@ class BaseDiscretizer():
                 self.stds[feature].append(std)
             self.mins[feature] = [boundaries[0]] + qts.tolist()
             self.maxs[feature] = qts.tolist() + [boundaries[1]]
-            [self.get_undiscretize_value(feature, i)
-             for i in range(n_bins + 1)]
 
     @abstractmethod
     def bins(self, data, labels):
@@ -123,39 +113,37 @@ class BaseDiscretizer():
                     ret[:, feature]).astype(int)
         return ret
 
-    def get_undiscretize_value(self, feature, val):
-        if self.undiscretize_idxs[feature][val] == self.precompute_size:
-            self.undiscretize_idxs[feature][val] = 0
-            mins = self.mins[feature]
-            maxs = self.maxs[feature]
-            means = self.means[feature]
-            stds = self.stds[feature]
-            minz = (mins[val] - means[val]) / stds[val]
-            maxz = (maxs[val] - means[val]) / stds[val]
-            if minz == maxz:
-                self.undiscretize_precomputed[feature][val] = (
-                    np.ones(self.precompute_size) * minz)
-            else:
-                self.undiscretize_precomputed[feature][val] = (
-                    scipy.stats.truncnorm.rvs(
-                        minz, maxz, loc=means[val], scale=stds[val],
-                        random_state=self.random_state,
-                        size=self.precompute_size))
-        idx = self.undiscretize_idxs[feature][val]
-        ret = self.undiscretize_precomputed[feature][val][idx]
-        self.undiscretize_idxs[feature][val] += 1
+    def get_undiscretize_values(self, feature, values):
+        mins = np.array(self.mins[feature])[values]
+        maxs = np.array(self.maxs[feature])[values]
+
+        means = np.array(self.means[feature])[values]
+        stds = np.array(self.stds[feature])[values]
+        minz = (mins - means) / stds
+        maxz = (maxs - means) / stds
+        min_max_unequal = (minz != maxz)
+
+        ret = minz
+        ret[np.where(min_max_unequal)] = scipy.stats.truncnorm.rvs(
+            minz[min_max_unequal],
+            maxz[min_max_unequal],
+            loc=means[min_max_unequal],
+            scale=stds[min_max_unequal],
+            random_state=self.random_state
+        )
         return ret
 
     def undiscretize(self, data):
         ret = data.copy()
         for feature in self.means:
             if len(data.shape) == 1:
-                q = int(ret[feature])
-                ret[feature] = self.get_undiscretize_value(feature, q)
+                ret[feature] = self.get_undiscretize_values(
+                    feature, ret[feature].astype(int).reshape(-1, 1)
+                )
             else:
-                ret[:, feature] = (
-                    [self.get_undiscretize_value(feature, int(x))
-                     for x in ret[:, feature]])
+                ret[:, feature] = self.get_undiscretize_values(
+                    feature, ret[:, feature].astype(int)
+                )
         return ret
 
 

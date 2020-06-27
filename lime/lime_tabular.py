@@ -208,20 +208,24 @@ class LimeTabularExplainer(object):
             if self.training_data_stats:
                 discretizer = StatsDiscretizer(training_data, self.categorical_features,
                                                self.feature_names, labels=training_labels,
-                                               data_stats=self.training_data_stats)
+                                               data_stats=self.training_data_stats,
+                                               random_state=self.random_state)
 
             if discretizer == 'quartile':
                 self.discretizer = QuartileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels,
+                        random_state=self.random_state)
             elif discretizer == 'decile':
                 self.discretizer = DecileDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels,
+                        random_state=self.random_state)
             elif discretizer == 'entropy':
                 self.discretizer = EntropyDiscretizer(
                         training_data, self.categorical_features,
-                        self.feature_names, labels=training_labels)
+                        self.feature_names, labels=training_labels,
+                        random_state=self.random_state)
             elif isinstance(discretizer, BaseDiscretizer):
                 self.discretizer = discretizer
             else:
@@ -250,7 +254,6 @@ class LimeTabularExplainer(object):
         self.class_names = class_names
 
         # Though set has no role to play if training data stats are provided
-        self.scaler = None
         self.scaler = sklearn.preprocessing.StandardScaler(with_mean=False)
         self.scaler.fit(training_data)
         self.feature_values = {}
@@ -288,7 +291,7 @@ class LimeTabularExplainer(object):
         valid_stat_keys = ["means", "mins", "maxs", "stds", "feature_values", "feature_frequencies"]
         missing_keys = list(set(valid_stat_keys) - set(stat_keys))
         if len(missing_keys) > 0:
-            raise Exception("Missing keys in training_data_stats. Details:" % (missing_keys))
+            raise Exception("Missing keys in training_data_stats. Details: %s" % (missing_keys))
 
     def explain_instance(self,
                          data_row,
@@ -379,6 +382,8 @@ class LimeTabularExplainer(object):
         # for regression, the output should be a one-dimensional array of predictions
         else:
             try:
+                if len(yss.shape) != 1 and len(yss[0].shape) == 1:
+                    yss = np.array([v[0] for v in yss])
                 assert isinstance(yss, np.ndarray) and len(yss.shape) == 1
             except AssertionError:
                 raise ValueError("Your model needs to output single-dimensional \
@@ -430,7 +435,6 @@ class LimeTabularExplainer(object):
         ret_exp = explanation.Explanation(domain_mapper,
                                           mode=self.mode,
                                           class_names=self.class_names)
-        ret_exp.scaled_data = scaled_data
         if self.mode == "classification":
             ret_exp.predict_proba = yss[0]
             if top_labels:
@@ -537,8 +541,7 @@ class LimeTabularExplainer(object):
             freqs = self.feature_frequencies[column]
             inverse_column = self.random_state.choice(values, size=num_samples,
                                                       replace=True, p=freqs)
-            binary_column = np.array([1 if x == first_row[column]
-                                      else 0 for x in inverse_column])
+            binary_column = (inverse_column == first_row[column]).astype(int)
             binary_column[0] = 1
             inverse_column[0] = data[0, column]
             data[:, column] = binary_column

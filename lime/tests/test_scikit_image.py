@@ -2,7 +2,7 @@ import unittest
 from lime.wrappers.scikit_image import BaseWrapper
 from lime.wrappers.scikit_image import SegmentationAlgorithm
 from skimage.segmentation import quickshift
-from skimage.data import astronaut
+from skimage.data import chelsea
 from skimage.util import img_as_float
 import numpy as np
 
@@ -105,7 +105,7 @@ class TestBaseWrapper(unittest.TestCase):
 class TestSegmentationAlgorithm(unittest.TestCase):
 
     def test_instanciate_segmentation_algorithm(self):
-        img = img_as_float(astronaut()[::2, ::2])
+        img = img_as_float(chelsea()[::2, ::2])
 
         # wrapped functions provide the same result
         fn = SegmentationAlgorithm('quickshift', kernel_size=3, max_dist=6,

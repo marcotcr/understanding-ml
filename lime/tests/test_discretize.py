@@ -1,3 +1,4 @@
+import unittest
 from unittest import TestCase
 
 import numpy as np
@@ -170,3 +171,7 @@ class TestDiscretize(TestCase):
                  '1.75 < petal width (cm) <= 1.85',
                  'petal width (cm) > 1.85']},
             discretizer.names)
+
+
+if __name__ == '__main__':
+    unittest.main()

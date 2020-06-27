@@ -1,7 +1,6 @@
 """
 Explanation class, with visualization functions.
 """
-from __future__ import unicode_literals
 from io import open
 import os
 import os.path
@@ -98,7 +97,6 @@ class Explanation(object):
         self.intercept = {}
         self.score = None
         self.local_pred = None
-        self.scaled_data = None
         if mode == 'classification':
             self.class_names = class_names
             self.top_labels = None

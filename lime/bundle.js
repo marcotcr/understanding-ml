@@ -27388,7 +27388,8 @@ var lime =
 	    this.color = _d2.default.scale.category10();
 	    this.color('predicted_value');
 	    // + 2 is due to it being a float
-	    var num_digits = Math.floor(Math.max(Math.log10(min_value), Math.log10(max_value))) + 2;
+	    console.log('CREATING THIS');
+	    var num_digits = Math.floor(Math.max(Math.log10(Math.abs(min_value)), Math.log10(Math.abs(max_value)))) + 2;
 	    num_digits = Math.max(num_digits, 3);
 	
 	    var corner_width = 12 * num_digits;

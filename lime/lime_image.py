@@ -9,6 +9,8 @@ import sklearn
 import sklearn.preprocessing
 from sklearn.utils import check_random_state
 from skimage.color import gray2rgb
+from tqdm.auto import tqdm
+
 
 from . import lime_base
 from .wrappers.scikit_image import SegmentationAlgorithm
@@ -28,20 +30,22 @@ class ImageExplanation(object):
         self.local_exp = {}
         self.local_pred = None
 
-    def get_image_and_mask(self, label, positive_only=True, hide_rest=False,
+    def get_image_and_mask(self, label, positive_only=True, negative_only=False, hide_rest=False,
                            num_features=5, min_weight=0.):
         """Init function.
 
         Args:
             label: label to explain
-            positive_only: if True, only take superpixels that contribute to
-                the prediction of the label. Otherwise, use the top
-                num_features superpixels, which can be positive or negative
-                towards the label
+            positive_only: if True, only take superpixels that positively contribute to
+                the prediction of the label.
+            negative_only: if True, only take superpixels that negatively contribute to
+                the prediction of the label. If false, and so is positive_only, then both
+                negativey and positively contributions will be taken.
+                Both can't be True at the same time
             hide_rest: if True, make the non-explanation part of the return
                 image gray
             num_features: number of superpixels to include in explanation
-            min_weight: TODO
+            min_weight: minimum weight of the superpixels to include in explanation
 
         Returns:
             (image, mask), where image is a 3d numpy array and mask is a 2d
@@ -50,6 +54,8 @@ class ImageExplanation(object):
         """
         if label not in self.local_exp:
             raise KeyError('Label not in explanation')
+        if positive_only & negative_only:
+            raise ValueError("Positive_only and negative_only cannot be true at the same time.")
         segments = self.segments
         image = self.image
         exp = self.local_exp[label]
@@ -61,6 +67,10 @@ class ImageExplanation(object):
         if positive_only:
             fs = [x[0] for x in exp
                   if x[1] > 0 and x[1] > min_weight][:num_features]
+        if negative_only:
+            fs = [x[0] for x in exp
+                  if x[1] < 0 and abs(x[1]) > min_weight][:num_features]
+        if positive_only or negative_only:
             for f in fs:
                 temp[segments == f] = image[segments == f].copy()
                 mask[segments == f] = 1
@@ -70,13 +80,9 @@ class ImageExplanation(object):
                 if np.abs(w) < min_weight:
                     continue
                 c = 0 if w < 0 else 1
-                mask[segments == f] = 1 if w < 0 else 2
+                mask[segments == f] = -1 if w < 0 else 1
                 temp[segments == f] = image[segments == f].copy()
                 temp[segments == f, c] = np.max(image)
-                for cp in [0, 1, 2]:
-                    if c == cp:
-                        continue
-                    # temp[segments == f, cp] *= 0.5
             return temp, mask
 
 
@@ -243,7 +249,7 @@ class LimeImageExplainer(object):
         labels = []
         data[0, :] = 1
         imgs = []
-        for row in data:
+        for row in tqdm(data):
             temp = copy.deepcopy(image)
             zeros = np.where(row == 0)[0]
             mask = np.zeros(segments.shape).astype(bool)

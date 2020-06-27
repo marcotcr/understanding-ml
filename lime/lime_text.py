@@ -1,8 +1,6 @@
 """
 Functions for explaining text classifiers.
 """
-from __future__ import unicode_literals
-
 from functools import partial
 import itertools
 import json
