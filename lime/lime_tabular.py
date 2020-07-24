@@ -301,7 +301,8 @@ class LimeTabularExplainer(object):
                          num_features=10,
                          num_samples=5000,
                          distance_metric='euclidean',
-                         model_regressor=None):
+                         model_regressor=None,
+                         use_feature_names=None):
         """Generates explanations for a prediction.
 
         First, we generate neighborhood data by randomly perturbing features
@@ -456,7 +457,10 @@ class LimeTabularExplainer(object):
                     label,
                     num_features,
                     model_regressor=model_regressor,
-                    feature_selection=self.feature_selection)
+                    feature_selection=self.feature_selection,
+                    feature_names=self.feature_names,
+                    use_feature_names=use_feature_names
+                    )
 
         if self.mode == "regression":
             ret_exp.intercept[1] = ret_exp.intercept[0]
