@@ -150,7 +150,9 @@ class LimeImageExplainer(object):
                 takes a numpy array and outputs prediction probabilities.  For
                 ScikitClassifiers , this is classifier.predict_proba.
             labels: iterable with labels to be explained.
-            hide_color: TODO
+            hide_color: hide_color is the color for a superpixel turned OFF.
+                If it is NONE, the superpixel will be replaced by the average
+                of its pixels.
             top_labels: if not None, ignore labels and produce explanations for
                 the K labels with highest prediction probabilities, where K is
                 this parameter.
