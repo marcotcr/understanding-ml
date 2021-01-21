@@ -155,7 +155,7 @@ class LimeImageExplainer(object):
                 this parameter.
             num_features: maximum number of features present in explanation
             num_samples: size of the neighborhood to learn the linear model
-            batch_size: TODO
+            batch_size: classifier_fn will be called on batches of this size.
             distance_metric: the distance metric to use for weights.
             model_regressor: sklearn regressor to use in explanation. Defaults
             to Ridge regression in LimeBase. Must have model_regressor.coef_
