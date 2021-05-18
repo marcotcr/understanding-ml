@@ -566,7 +566,7 @@ class LimeTabularExplainer(object):
             values = self.feature_values[column]
             freqs = self.feature_frequencies[column]
             inverse_column = self.random_state.choice(values, size=num_samples,
-                                                      replace=True, p=freqs)
+                                                      replace=True, p=freqs).astype(float)
             binary_column = (inverse_column == first_row[column]).astype(int)
             binary_column[0] = 1
             inverse_column[0] = data[0, column]
